@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxPrinterG
+Name[ru]=LinuxPrinterG
+GenericName=Printing and scanning center
+GenericName[ru]=Центр управления печатью и сканированием
+Comment=Manage printers and scanners through CUPS and SANE
+Comment[ru]=Управление принтерами и сканерами через CUPS и SANE
+Exec=linuxprinterg
+Icon=org.linuxprinterg.LinuxPrinterG
+Terminal=false
+Categories=Office;Utility;GTK;
+Keywords=print;scan;cups;sane;printer;scanner;
+Keywords[ru]=печать;скан;принтер;сканер;cups;sane;
+StartupNotify=true

@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/linuxprinterg-core",
+    "crates/linuxprinterg",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["LinuxPrinterG contributors"]
+repository = "https://github.com/linuxprinterg/linuxprinterg"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"

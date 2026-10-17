@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+/dist
+*.pdf
+*.png
+*.jpg
+!crates/linuxprinterg/data/*.png
+.flatpak-builder
+flatpak-build
+*.deb
+*.rpm
+*.AppImage

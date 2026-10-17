@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.linuxprinterg.LinuxPrinterG</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>LinuxPrinterG</name>
+  <summary>Printing and scanning center for CUPS and SANE</summary>
+  <summary xml:lang="ru">Центр управления печатью и сканированием для CUPS и SANE</summary>
+  <description>
+    <p>
+      LinuxPrinterG is a fast, minimalistic desktop hub for printing and
+      scanning. It works with the system services — CUPS for printing and
+      SANE (including eSCL/AirScan backends) for scanning — and uses the
+      drivers already installed in the system.
+    </p>
+    <p>
+      Features: print PDF and images with full CUPS options, drag and drop,
+      print queue management, scanning to PDF/PNG/JPEG/TIFF/WebP with crop
+      and rotation, optional OCR via Tesseract, device management, settings
+      and an operation journal.
+    </p>
+    <p xml:lang="ru">
+      LinuxPrinterG — быстрый минималистичный центр управления печатью и
+      сканированием. Работает со системными службами CUPS и SANE
+      (включая eSCL/AirScan) и использует уже установленные драйверы.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.linuxprinterg.LinuxPrinterG.desktop</launchable>
+  <url type="homepage">https://github.com/linuxprinterg/linuxprinterg</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-17"/>
+  </releases>
+</component>

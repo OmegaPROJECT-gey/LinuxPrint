@@ -1,0 +1,38 @@
+# Flatpak-манифест LinuxPrinterG.
+#
+# ОГРАНИЧЕНИЯ ПЕСОЧНИЦЫ (документированные исключения):
+# * --device=all        — доступ к USB-устройствам нужен SANE для сканирования;
+# * --share=network     — CUPS на localhost:631 недоступен из песочницы через
+#                         сокет, сетевой доступ позволяет работать с локальным
+#                         и сетевыми принтерами напрямую;
+# * --filesystem=xdg-download — папка сохранения сканов по умолчанию.
+# Печать через системный диалог CUPS (lpadmin) из песочницы не выполняется —
+# приложение использует пользовательские lp/lpstat, что root-прав не требует.
+app-id: org.linuxprinterg.LinuxPrinterG
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+command: linuxprinterg
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=all
+  - --filesystem=xdg-download
+  - --filesystem=xdg-documents
+  - --talk-name=org.freedesktop.Notifications
+  - --env=RUST_LOG=info
+modules:
+  - name: linuxprinterg
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked
+      - install -Dm755 target/release/linuxprinterg /app/bin/linuxprinterg
+      - install -Dm644 crates/linuxprinterg/data/org.linuxprinterg.LinuxPrinterG.desktop
+        /app/share/applications/org.linuxprinterg.LinuxPrinterG.desktop
+      - install -Dm644 crates/linuxprinterg/data/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+        /app/share/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+    sources:
+      - type: dir
+        path: ../../..

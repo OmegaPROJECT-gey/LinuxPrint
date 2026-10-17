@@ -21,17 +21,17 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
 
     let refresh_btn = gtk::Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text(&i18n::tr("common.refresh"))
+        .tooltip_text(i18n::tr("common.refresh"))
         .css_classes(["flat"])
         .build();
     let export_btn = gtk::Button::builder()
         .icon_name("document-save-symbolic")
-        .tooltip_text(&i18n::tr("common.export"))
+        .tooltip_text(i18n::tr("common.export"))
         .css_classes(["flat"])
         .build();
     let clear_btn = gtk::Button::builder()
         .icon_name("edit-clear-symbolic")
-        .tooltip_text(&i18n::tr("common.clear"))
+        .tooltip_text(i18n::tr("common.clear"))
         .css_classes(["flat"])
         .build();
     header.pack_end(&clear_btn);
@@ -48,7 +48,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         .margin_bottom(12)
         .build();
     let empty = gtk::Label::builder()
-        .label(&i18n::tr("journal.empty"))
+        .label(i18n::tr("journal.empty"))
         .css_classes(["dim-label"])
         .margin_top(24)
         .build();
@@ -156,8 +156,8 @@ impl JournalState {
 
     fn export(self: &Rc<Self>) {
         let dialog = gtk::FileDialog::builder()
-            .title(&i18n::tr("common.export"))
-            .initial_name(&format!("linuxprinterg-journal-{}.txt", self.export_date()))
+            .title(i18n::tr("common.export"))
+            .initial_name(format!("linuxprinterg-journal-{}.txt", self.export_date()))
             .build();
         let s = self.clone();
         dialog.save(
@@ -198,19 +198,16 @@ impl JournalState {
 
 fn entry_row(entry: &Entry) -> gtk::ListBoxRow {
     let time = gtk::Label::builder()
-        .label(&entry.ts_display())
+        .label(entry.ts_display())
         .css_classes(["dim-label", "monospace"])
         .xalign(0.0)
         .build();
     let level = gtk::Label::builder()
-        .label(&i18n::tr(&format!(
-            "journal.level.{}",
-            entry.level.as_str()
-        )))
+        .label(i18n::tr(&format!("journal.level.{}", entry.level.as_str())))
         .css_classes([level_css(entry.level)])
         .build();
     let category = gtk::Label::builder()
-        .label(&i18n::tr(&format!(
+        .label(i18n::tr(&format!(
             "journal.category.{}",
             entry.category.as_str()
         )))

@@ -161,7 +161,9 @@ pub fn show_message(parent: Option<&impl IsA<gtk::Widget>>, heading: &str, body:
     dialog.add_response("close", &i18n::tr("common.close"));
     // MessageDialog — подкласс gtk::Window: родитель задаётся transient_for.
     if let Some(parent_widget) = parent {
-        if let Some(parent_window) = parent_widget.root().and_then(|r| r.downcast::<gtk::Window>().ok())
+        if let Some(parent_window) = parent_widget
+            .root()
+            .and_then(|r| r.downcast::<gtk::Window>().ok())
         {
             dialog.set_transient_for(Some(&parent_window));
         }

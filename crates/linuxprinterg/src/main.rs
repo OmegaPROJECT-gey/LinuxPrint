@@ -18,6 +18,13 @@ fn main() {
 
     tracing::info!("LinuxPrinterG запускается");
 
+    // Виджеты libadwaita создаются в AppCtx до запуска приложения,
+    // поэтому GTK/libadwaita инициализируется здесь (повторный вызов безопасен).
+    if let Err(e) = adw::init() {
+        tracing::error!("не удалось инициализировать GTK/libadwaita: {e}");
+        std::process::exit(1);
+    }
+
     let ctx = ctx::AppCtx::new(settings);
     let app = app::build_application(ctx);
     app.run_with_args::<&str>(&[]);

@@ -26,7 +26,9 @@ pub fn ensure_available() -> Result<()> {
             tool: "lpstat".to_string(),
         });
     }
-    let out = proc::run("lpstat", &["--version"], TIMEOUT)?;
+    // Проба работоспособности: `lpstat -r` возвращает0 при доступном CUPS.
+    // `--version` часть сборок CUPS не поддерживает («unknown option»).
+    let out = proc::run("lpstat", &["-r"], TIMEOUT)?;
     if out.status != 0 {
         return Err(Error::ToolFailed {
             tool: "lpstat".into(),

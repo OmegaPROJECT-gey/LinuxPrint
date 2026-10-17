@@ -2,7 +2,7 @@
 //! кадрированием и поворотом, сохранение в PDF/PNG/JPEG/TIFF/WebP, OCR.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -31,7 +31,7 @@ const FORMAT_NAMES: &[&str] = &["PDF", "PNG", "JPEG", "TIFF", "WebP"];
 const ROTATION_LABELS: &[&str] = &["0°", "90°", "180°", "270°"];
 
 /// Текущее состояние сканирования (главный поток).
-struct Runtime {
+pub struct Runtime {
     cancel: Option<CancelHandle>,
     busy: bool,
     options: Option<ScannerOptions>,
@@ -70,7 +70,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     header.set_title_widget(Some(&gtk::Label::new(Some(&i18n::tr("nav.scan")))));
     let refresh_btn = gtk::Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text(&i18n::tr("common.refresh"))
+        .tooltip_text(i18n::tr("common.refresh"))
         .css_classes(["flat"])
         .build();
     header.pack_end(&refresh_btn);
@@ -87,11 +87,11 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let format_dd = gtk::DropDown::from_strings(FORMAT_NAMES);
     let template_entry = gtk::Entry::builder()
         .text(&ctx.settings.borrow().scan.template)
-        .placeholder_text(&i18n::tr("scan.template_hint"))
+        .placeholder_text(i18n::tr("scan.template_hint"))
         .build();
     let folder_btn = gtk::Button::builder()
         .icon_name("folder-open-symbolic")
-        .tooltip_text(&i18n::tr("common.browse"))
+        .tooltip_text(i18n::tr("common.browse"))
         .css_classes(["flat"])
         .build();
     let folder_row_label = gtk::Label::builder()
@@ -131,7 +131,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     crop_w.set_value(0.0);
     crop_h.set_value(0.0);
     let crop_reset = gtk::Button::builder()
-        .label(&i18n::tr("scan.crop_reset"))
+        .label(i18n::tr("scan.crop_reset"))
         .css_classes(["flat"])
         .build();
     let crop_box = gtk::Box::builder()
@@ -190,17 +190,17 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
 
     // --- Кнопки и прогресс ------------------------------------------------
     let preview_btn = gtk::Button::builder()
-        .label(&i18n::tr("scan.preview_btn"))
+        .label(i18n::tr("scan.preview_btn"))
         .icon_name("zoom-fit-best-symbolic")
-        .tooltip_text(&i18n::trf("scan.preview_hint", &[("dpi", "96")]))
+        .tooltip_text(i18n::trf("scan.preview_hint", &[("dpi", "96")]))
         .build();
     let scan_btn = gtk::Button::builder()
-        .label(&i18n::tr("scan.scan_save"))
+        .label(i18n::tr("scan.scan_save"))
         .icon_name("document-scan-symbolic")
         .css_classes(["suggested-action"])
         .build();
     let cancel_btn = gtk::Button::builder()
-        .label(&i18n::tr("scan.cancel"))
+        .label(i18n::tr("scan.cancel"))
         .icon_name("process-stop-symbolic")
         .css_classes(["destructive-action"])
         .sensitive(false)
@@ -469,7 +469,7 @@ impl ScanState {
 
     fn choose_folder(self: &Rc<Self>) {
         let dialog = gtk::FileDialog::builder()
-            .title(&i18n::tr("scan.folder"))
+            .title(i18n::tr("scan.folder"))
             .build();
         let s = self.clone();
         dialog.select_folder(Some(&self.window), gio::Cancellable::NONE, move |result| {
@@ -721,7 +721,7 @@ impl ScanState {
         lang: &str,
         template: &str,
         device: &str,
-        dir: &PathBuf,
+        dir: &Path,
     ) {
         if !ocr::available() {
             self.ctx

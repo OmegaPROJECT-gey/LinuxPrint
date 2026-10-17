@@ -22,12 +22,12 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     banner.set_revealed(false);
 
     let printers_group = adw::PreferencesGroup::builder()
-        .title(&i18n::tr("devices.printers"))
-        .description(&i18n::tr("devices.empty_printers"))
+        .title(i18n::tr("devices.printers"))
+        .description(i18n::tr("devices.empty_printers"))
         .build();
     let scanners_group = adw::PreferencesGroup::builder()
-        .title(&i18n::tr("devices.scanners"))
-        .description(&i18n::tr("devices.empty_scanners"))
+        .title(i18n::tr("devices.scanners"))
+        .description(i18n::tr("devices.empty_scanners"))
         .build();
 
     let printers_holder = gtk::Box::builder()
@@ -51,9 +51,10 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     {
         let s = state.clone();
         state.banner.connect_button_clicked(move |_| {
-            if let Err(e) =
-                gio::AppInfo::launch_default_for_uri("http://localhost:631", None::<&gio::AppLaunchContext>)
-            {
+            if let Err(e) = gio::AppInfo::launch_default_for_uri(
+                "http://localhost:631",
+                None::<&gio::AppLaunchContext>,
+            ) {
                 s.ctx
                     .toast_error(&linuxprinterg_core::Error::msg(e.to_string()));
             }
@@ -65,14 +66,14 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     let header = adw::HeaderBar::new();
     header.set_title_widget(Some(&gtk::Label::new(Some(&i18n::tr("nav.devices")))));
     let add_btn = gtk::Button::builder()
-        .label(&i18n::tr("devices.add_printer"))
+        .label(i18n::tr("devices.add_printer"))
         .icon_name("list-add-symbolic")
-        .tooltip_text(&i18n::tr("devices.add_printer"))
+        .tooltip_text(i18n::tr("devices.add_printer"))
         .css_classes(["flat"])
         .build();
     let refresh_btn = gtk::Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text(&i18n::tr("common.refresh"))
+        .tooltip_text(i18n::tr("common.refresh"))
         .css_classes(["flat"])
         .build();
     header.pack_end(&refresh_btn);
@@ -148,7 +149,7 @@ impl DevicesState {
                 self.ctx.effective_default_printer().as_deref() == Some(printer.name.as_str());
             let row = adw::ActionRow::builder()
                 .title(&printer.name)
-                .subtitle(&format!(
+                .subtitle(format!(
                     "{} · {}",
                     state_text(&printer.state),
                     if printer.uri.is_empty() {
@@ -162,13 +163,13 @@ impl DevicesState {
 
             if is_default {
                 let badge = gtk::Label::builder()
-                    .label(&i18n::tr("devices.default_badge"))
+                    .label(i18n::tr("devices.default_badge"))
                     .css_classes(["success", "caption"])
                     .build();
                 row.add_suffix(&badge);
             } else {
                 let set_default = gtk::Button::builder()
-                    .label(&i18n::tr("devices.set_default"))
+                    .label(i18n::tr("devices.set_default"))
                     .css_classes(["flat"])
                     .valign(gtk::Align::Center)
                     .build();
@@ -295,10 +296,9 @@ impl DevicesState {
                 );
             }
             AddPrinterStrategy::CupsWebUi(url) => {
-                if let Err(e) = gio::AppInfo::launch_default_for_uri(
-                    &url,
-                    None::<&gio::AppLaunchContext>,
-                ) {
+                if let Err(e) =
+                    gio::AppInfo::launch_default_for_uri(&url, None::<&gio::AppLaunchContext>)
+                {
                     self.ctx
                         .toast_error(&linuxprinterg_core::Error::msg(e.to_string()));
                 } else {

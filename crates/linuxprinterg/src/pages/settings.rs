@@ -40,49 +40,49 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
 
     // --- Группа: значения по умолчанию ------------------------------------
     let defaults = adw::PreferencesGroup::builder()
-        .title(&i18n::tr("settings.group_defaults"))
+        .title(i18n::tr("settings.group_defaults"))
         .build();
 
     let printer_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.default_printer"))
+        .title(i18n::tr("settings.default_printer"))
         .model(&gtk::StringList::new(&[]))
         .build();
     let scanner_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.default_scanner"))
+        .title(i18n::tr("settings.default_scanner"))
         .model(&gtk::StringList::new(&[]))
         .build();
     let media_row = adw::ComboRow::builder()
-        .title(&i18n::tr("print.media"))
+        .title(i18n::tr("print.media"))
         .model(&gtk::StringList::new(MEDIA))
         .build();
     let resolutions: Vec<String> = RESOLUTIONS.iter().map(|r| r.to_string()).collect();
     let resolution_refs: Vec<&str> = resolutions.iter().map(String::as_str).collect();
     let resolution_row = adw::ComboRow::builder()
-        .title(&i18n::tr("scan.resolution"))
+        .title(i18n::tr("scan.resolution"))
         .model(&gtk::StringList::new(&resolution_refs))
         .build();
     let mode_row = adw::ComboRow::builder()
-        .title(&i18n::tr("scan.mode"))
+        .title(i18n::tr("scan.mode"))
         .model(&gtk::StringList::new(MODES))
         .build();
     let format_row = adw::ComboRow::builder()
-        .title(&i18n::tr("scan.format"))
+        .title(i18n::tr("scan.format"))
         .model(&gtk::StringList::new(FORMATS))
         .build();
     let ocr_row = adw::SwitchRow::builder()
-        .title(&i18n::tr("scan.ocr"))
+        .title(i18n::tr("scan.ocr"))
         .build();
     let ocr_lang_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.ocr_lang"))
+        .title(i18n::tr("settings.ocr_lang"))
         .model(&gtk::StringList::new(OCR_LANGS))
         .build();
     let template_row = adw::EntryRow::builder()
-        .title(&i18n::tr("scan.template"))
+        .title(i18n::tr("scan.template"))
         .show_apply_button(true)
         .build();
 
     let folder_row = adw::ActionRow::builder()
-        .title(&i18n::tr("settings.scan_dir"))
+        .title(i18n::tr("settings.scan_dir"))
         .subtitle(&ctx.settings.borrow().scan.scan_dir)
         .activatable(true)
         .build();
@@ -107,7 +107,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
 
     // --- Группа: оформление -----------------------------------------------
     let appearance = adw::PreferencesGroup::builder()
-        .title(&i18n::tr("settings.group_appearance"))
+        .title(i18n::tr("settings.group_appearance"))
         .build();
     let theme_labels = [
         i18n::tr("settings.theme.system"),
@@ -115,7 +115,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         i18n::tr("settings.theme.dark"),
     ];
     let theme_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.theme"))
+        .title(i18n::tr("settings.theme"))
         .model(&string_list(&theme_labels))
         .build();
     let language_labels = [
@@ -124,7 +124,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         i18n::tr("settings.language.en"),
     ];
     let language_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.language"))
+        .title(i18n::tr("settings.language"))
         .model(&string_list(&language_labels))
         .build();
     appearance.add(&theme_row);
@@ -133,16 +133,16 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
 
     // --- Группа: система ---------------------------------------------------
     let system = adw::PreferencesGroup::builder()
-        .title(&i18n::tr("settings.group_system"))
+        .title(i18n::tr("settings.group_system"))
         .build();
     let log_level_labels: Vec<String> = LOG_LEVELS_KEYS.iter().map(|k| i18n::tr(k)).collect();
     let log_level_refs: Vec<&str> = log_level_labels.iter().map(String::as_str).collect();
     let log_level_row = adw::ComboRow::builder()
-        .title(&i18n::tr("settings.log_level"))
+        .title(i18n::tr("settings.log_level"))
         .model(&gtk::StringList::new(&log_level_refs))
         .build();
     let logs_row = adw::ActionRow::builder()
-        .title(&i18n::tr("settings.open_logs"))
+        .title(i18n::tr("settings.open_logs"))
         .activatable(true)
         .build();
     let logs_btn = gtk::Button::builder()
@@ -152,7 +152,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         .build();
     logs_row.add_suffix(&logs_btn);
     let reset_row = adw::ActionRow::builder()
-        .title(&i18n::tr("settings.reset"))
+        .title(i18n::tr("settings.reset"))
         .activatable(true)
         .build();
     let reset_btn = gtk::Button::builder()
@@ -236,12 +236,12 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     {
         let s = state.clone();
         format_row.connect_selected_notify(move |row| {
-            let fmt = combo_text(row).and_then(|f| match f.as_str() {
-                "PNG" => Some(OutputFormat::Png),
-                "JPEG" => Some(OutputFormat::Jpeg),
-                "TIFF" => Some(OutputFormat::Tiff),
-                "WebP" => Some(OutputFormat::Webp),
-                _ => Some(OutputFormat::Pdf),
+            let fmt = combo_text(row).map(|f| match f.as_str() {
+                "PNG" => OutputFormat::Png,
+                "JPEG" => OutputFormat::Jpeg,
+                "TIFF" => OutputFormat::Tiff,
+                "WebP" => OutputFormat::Webp,
+                _ => OutputFormat::Pdf,
             });
             if let Some(fmt) = fmt {
                 s.ctx.settings.borrow_mut().scan.format = fmt;
@@ -439,7 +439,7 @@ impl SettingsState {
 
     fn choose_folder(self: &Rc<Self>) {
         let dialog = gtk::FileDialog::builder()
-            .title(&i18n::tr("settings.scan_dir"))
+            .title(i18n::tr("settings.scan_dir"))
             .build();
         let s = self.clone();
         dialog.select_folder(
@@ -466,9 +466,7 @@ impl SettingsState {
             return;
         }
         let uri = gio::File::for_path(&dir).uri();
-        if let Err(e) =
-            gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>)
-        {
+        if let Err(e) = gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>) {
             self.ctx
                 .toast_error(&linuxprinterg_core::Error::msg(e.to_string()));
         }

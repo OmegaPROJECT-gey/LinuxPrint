@@ -77,7 +77,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     header.set_title_widget(Some(&gtk::Label::new(Some(&i18n::tr("nav.print")))));
     let refresh_btn = gtk::Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text(&i18n::tr("common.refresh"))
+        .tooltip_text(i18n::tr("common.refresh"))
         .css_classes(["flat"])
         .build();
     header.pack_end(&refresh_btn);
@@ -98,7 +98,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     preview_stack.add_named(&spinner, Some("spinner"));
 
     let file_name = gtk::Label::builder()
-        .label(&i18n::tr("print.drop_hint"))
+        .label(i18n::tr("print.drop_hint"))
         .xalign(0.0)
         .wrap(true)
         .ellipsize(pango::EllipsizeMode::Middle)
@@ -111,11 +111,11 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .css_classes(["dim-label"])
         .build();
     let open_btn = gtk::Button::builder()
-        .label(&i18n::tr("print.select_file"))
+        .label(i18n::tr("print.select_file"))
         .build();
     let clear_btn = gtk::Button::builder()
         .icon_name("edit-clear-symbolic")
-        .tooltip_text(&i18n::tr("common.clear"))
+        .tooltip_text(i18n::tr("common.clear"))
         .css_classes(["flat"])
         .build();
 
@@ -150,7 +150,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let printer_dd = gtk::DropDown::from_strings(&[]);
     printer_dd.set_hexpand(true);
     let print_btn = gtk::Button::builder()
-        .label(&i18n::tr("print.print_now"))
+        .label(i18n::tr("print.print_now"))
         .icon_name("printer-symbolic")
         .css_classes(["suggested-action"])
         .build();
@@ -178,10 +178,10 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let copies_spin = gtk::SpinButton::with_range(1.0, 999.0, 1.0);
     copies_spin.set_value(ctx.settings.borrow().print.copies as f64);
     let page_range = gtk::Entry::builder()
-        .placeholder_text(&i18n::tr("print.page_range_hint"))
+        .placeholder_text(i18n::tr("print.page_range_hint"))
         .build();
     let title = gtk::Entry::builder()
-        .placeholder_text(&i18n::tr("print.title"))
+        .placeholder_text(i18n::tr("print.title"))
         .build();
     let media_dd = gtk::DropDown::from_strings(MEDIA_FALLBACK);
     let tray_dd = gtk::DropDown::from_strings(&[]);
@@ -242,7 +242,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .css_classes(["boxed-list"])
         .build();
     let queue_empty = gtk::Label::builder()
-        .label(&i18n::tr("print.queue_empty"))
+        .label(i18n::tr("print.queue_empty"))
         .css_classes(["dim-label"])
         .margin_top(12)
         .margin_bottom(12)
@@ -254,7 +254,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
 
     let queue_refresh = gtk::Button::builder()
         .icon_name("view-refresh-symbolic")
-        .tooltip_text(&i18n::tr("common.refresh"))
+        .tooltip_text(i18n::tr("common.refresh"))
         .css_classes(["flat"])
         .build();
     let queue_header = gtk::Box::builder()
@@ -487,7 +487,7 @@ impl PrintState {
 
     fn choose_file(self: &Rc<Self>) {
         let dialog = gtk::FileDialog::builder()
-            .title(&i18n::tr("print.select_file"))
+            .title(i18n::tr("print.select_file"))
             .build();
         let filter = gtk::FileFilter::new();
         filter.set_name(Some("PDF / images / documents"));
@@ -763,13 +763,13 @@ impl PrintState {
                 .hexpand(true)
                 .build();
             let meta = gtk::Label::builder()
-                .label(&format!("{} · {}", job.owner, human_size(job.size)))
+                .label(format!("{} · {}", job.owner, human_size(job.size)))
                 .css_classes(["dim-label"])
                 .xalign(1.0)
                 .build();
             let cancel_btn = gtk::Button::builder()
                 .icon_name("edit-delete-symbolic")
-                .tooltip_text(&i18n::tr("print.cancel_job"))
+                .tooltip_text(i18n::tr("print.cancel_job"))
                 .css_classes(["flat"])
                 .build();
             {

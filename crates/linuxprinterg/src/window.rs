@@ -30,7 +30,7 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
         .application(app)
         .default_width(1080)
         .default_height(720)
-        .title(&i18n::tr("app.title"))
+        .title(i18n::tr("app.title"))
         .build();
 
     *ctx.window.borrow_mut() = Some(window.clone());
@@ -103,12 +103,13 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
 
     let content_page = adw::NavigationPage::builder()
         .tag("content")
+        .title(i18n::tr("app.title"))
         .child(&stack)
         .build();
 
     let sidebar_page = adw::NavigationPage::builder()
         .tag("sidebar")
-        .title(&i18n::tr("app.title"))
+        .title(i18n::tr("app.title"))
         .child(&sidebar_scroll)
         .build();
 
@@ -139,7 +140,11 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
 
 /// Создать страницу `index`, если она ещё не создана, и показать её.
 fn ensure_page(switcher: &Switcher, ctx: &Ctx, window: &adw::ApplicationWindow, index: u32) {
-    let mut pages = switcher.pages.borrow_mut();
+    // add_named() вызывает visible-child-notify, который может рекурсивно
+    // вернуться сюда: в этом случае внешний вызов уже строит страницу.
+    let Ok(mut pages) = switcher.pages.try_borrow_mut() else {
+        return;
+    };
     if pages
         .get(index as usize)
         .map(|p| p.is_some())

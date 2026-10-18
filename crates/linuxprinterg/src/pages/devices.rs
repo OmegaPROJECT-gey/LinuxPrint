@@ -1,5 +1,7 @@
-//! Страница «Устройства»: принтеры и сканеры, свойства, добавление принтера.
+//! Страница «Устройства»: принтеры и сканеры (SANE/CUPS), обнаружение в
+//! сети через DNS-SD (Avahi), свойства, добавление принтера.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -8,6 +10,7 @@ use gtk::gio;
 use linuxprinterg_core::domain::PrinterState;
 use linuxprinterg_core::i18n;
 use linuxprinterg_core::services::cups::{self, AddPrinterStrategy};
+use linuxprinterg_core::services::discover::{self, DnsSdDevice};
 use linuxprinterg_core::storage::journal::Category;
 
 use crate::ctx::{Ctx, show_message};
@@ -41,11 +44,29 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     printers_group.add(&printers_holder);
     scanners_group.add(&scanners_holder);
 
+    // Сетевые устройства (DNS-SD/Avahi) — в дополнение к lpstat/scanimage.
+    let net_holder = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(6)
+        .build();
+    let net_group = adw::PreferencesGroup::builder()
+        .title(i18n::tr("devices.network"))
+        .description(i18n::tr("devices.network_hint"))
+        .build();
+    net_group.add(&net_holder);
+
+    // Группы должны попасть на страницу — иначе содержимое не отображается.
+    page.add(&printers_group);
+    page.add(&scanners_group);
+    page.add(&net_group);
+
     let state = Rc::new(DevicesState {
         ctx: ctx.clone(),
         banner,
         printers_holder,
         scanners_holder,
+        net_holder,
+        net: RefCell::new(Vec::new()),
     });
 
     {
@@ -107,6 +128,9 @@ struct DevicesState {
     banner: adw::Banner,
     printers_holder: gtk::Box,
     scanners_holder: gtk::Box,
+    net_holder: gtk::Box,
+    /// Последний результат DNS-SD-обхода (avahi-browse).
+    net: RefCell<Vec<DnsSdDevice>>,
 }
 
 impl DevicesState {
@@ -115,7 +139,23 @@ impl DevicesState {
         self.ctx.refresh_devices(Some(Box::new(move || {
             s.rebuild();
             s.check_cups();
+            s.load_network();
         })));
+    }
+
+    /// Фоновый обход сети через Avahi (`avahi-browse -rtp`): Mopria-принтеры
+    /// и AirScan/eSCL-сканеры — в дополнение к спискам CUPS/SANE.
+    fn load_network(self: &Rc<Self>) {
+        let s = self.clone();
+        tasks::run_async(
+            || Ok(discover::discover()),
+            move |result| {
+                if let Ok(devices) = result {
+                    *s.net.borrow_mut() = devices;
+                    s.rebuild_network();
+                }
+            },
+        );
     }
 
     fn check_cups(self: &Rc<Self>) {
@@ -221,6 +261,73 @@ impl DevicesState {
             let s = self.clone();
             row.connect_activated(move |_| s.scanner_details(&id, &name));
             self.scanners_holder.append(&row);
+        }
+
+        self.rebuild_network();
+    }
+
+    /// Список устройств, найденных через DNS-SD (Mopria/AirScan), — в
+    /// дополнение к уже добавленным в CUPS/SANE.
+    fn rebuild_network(self: &Rc<Self>) {
+        clear_children(&self.net_holder);
+        let devices = self.net.borrow().clone();
+        if devices.is_empty() {
+            let key = if discover::tool().is_some() {
+                "devices.network_empty"
+            } else {
+                "devices.network_no_avahi"
+            };
+            self.net_holder.append(&dim_label(&i18n::tr(key)));
+            return;
+        }
+        for device in devices {
+            let kind = match device.kind {
+                discover::DnsSdKind::Printer => i18n::tr("devices.net_printer"),
+                discover::DnsSdKind::Scanner => i18n::tr("devices.net_scanner"),
+            };
+            let location = if device.address.is_empty() {
+                device.host.clone()
+            } else if device.port == 0 {
+                device.address.clone()
+            } else {
+                format!("{}:{}", device.address, device.port)
+            };
+            let subtitle = if location.is_empty() {
+                kind
+            } else {
+                format!("{kind} · {location}")
+            };
+            let row = adw::ActionRow::builder()
+                .title(&device.name)
+                .subtitle(subtitle)
+                .activatable(true)
+                .build();
+
+            let mut body = format!(
+                "{}: {}",
+                i18n::tr("devices.net_service"),
+                device.service_type
+            );
+            if !device.host.is_empty() {
+                body.push_str(&format!(
+                    "\n{}: {}",
+                    i18n::tr("devices.net_host"),
+                    device.host
+                ));
+            }
+            if !device.address.is_empty() {
+                let addr = if device.port > 0 {
+                    format!("{}:{}", device.address, device.port)
+                } else {
+                    device.address.clone()
+                };
+                body.push_str(&format!("\n{}: {}", i18n::tr("devices.net_address"), addr));
+            }
+            let title = device.name.clone();
+            row.connect_activated(move |_| {
+                show_message(None::<&gtk::Widget>, &title, &body);
+            });
+            self.net_holder.append(&row);
         }
     }
 

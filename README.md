@@ -114,7 +114,7 @@ linuxprinterg/
 ├── Cargo.toml                      # workspace (edition 2024, Rust ≥ 1.85)
 ├── Makefile                        # сборка, тесты, упаковка
 ├── rustfmt.toml
-├── .github/workflows/ci.yml        # fmt + clippy + test + build
+├── .github/workflows/ci.yml        # fmt + clippy + test + build + deb/rpm + flatpak
 ├── LICENSE                         # MIT
 ├── README.md
 ├── packaging/
@@ -277,6 +277,10 @@ Recommends. Пост-установочный скрипт обновляет к
 ```bash
 python3 scripts/render-icons.py   # требует python3-gi + librsvg2
 ```
+
+CI (GitHub Actions) на каждый push дополнительно собирает `.deb`/`.rpm`
+(артефакт `installers`) и Flatpak-бандл (артефакт
+`linuxprinterg-x86_64.flatpak`).
 
 Альтернативно RPM собирается из исходников на Fedora через
 `packaging/linuxprinterg.spec` (rpmbuild).

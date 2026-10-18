@@ -16,7 +16,7 @@ use linuxprinterg_core::domain::{
     JobState, Orientation, PrintColorMode, PrintQuality, PrintRequest, Printer, Sides,
 };
 use linuxprinterg_core::i18n;
-use linuxprinterg_core::services::{convert, cups, naming, pdf, preview};
+use linuxprinterg_core::services::{convert, cups, ipp, naming, pdf, preview};
 use linuxprinterg_core::storage::journal::Category;
 
 use crate::ctx::Ctx;
@@ -46,6 +46,15 @@ const ORIENTATION_LABELS: &[&str] = &[
     "print.orientation.reverse_portrait",
     "print.orientation.reverse_landscape",
 ];
+/// Отложенная печать: подписи — ключи i18n, значения ниже в `submit`
+/// (CUPS-значения `job-hold-until`).
+const HOLD_LABELS: &[&str] = &[
+    "print.hold_now",
+    "print.hold_day",
+    "print.hold_evening",
+    "print.hold_night",
+    "print.hold_weekend",
+];
 
 struct PrintState {
     ctx: Ctx,
@@ -62,6 +71,7 @@ struct PrintState {
     color_dd: gtk::DropDown,
     quality_dd: gtk::DropDown,
     orientation_dd: gtk::DropDown,
+    hold_dd: gtk::DropDown,
     file_name: gtk::Label,
     file_meta: gtk::Label,
     picture: gtk::Picture,
@@ -196,6 +206,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let color_dd = translated_dd(COLOR_LABELS);
     let quality_dd = translated_dd(QUALITY_LABELS);
     let orientation_dd = translated_dd(ORIENTATION_LABELS);
+    let hold_dd = translated_dd(HOLD_LABELS);
 
     sides_dd.set_selected(match ctx.settings.borrow().print.sides {
         Sides::OneSided => 0,
@@ -241,6 +252,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         &i18n::tr("print.orientation"),
         &orientation_dd,
     );
+    add_grid_row(&grid, &mut row, &i18n::tr("print.hold_label"), &hold_dd);
 
     // Быстрый фотопрофиль: качество «Фото», цвет, односторонняя печать и
     // фотобумага (если принтер сообщает тип носителя).
@@ -320,6 +332,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         color_dd,
         quality_dd,
         orientation_dd,
+        hold_dd,
         file_name,
         file_meta,
         picture,
@@ -707,6 +720,15 @@ impl PrintState {
             }
         };
         let copies = self.copies_spin.value().max(1.0) as u32;
+        // Отложенная печать: значения CUPS `job-hold-until`
+        // (индексы соответствуют HOLD_LABELS).
+        let hold_until = match self.hold_dd.selected() {
+            1 => Some("day-time".to_string()),
+            2 => Some("evening".to_string()),
+            3 => Some("night".to_string()),
+            4 => Some("weekend".to_string()),
+            _ => None,
+        };
 
         let mut req = PrintRequest {
             printer: printer.name.clone(),
@@ -721,6 +743,7 @@ impl PrintState {
             orientation,
             tray,
             media_type,
+            hold_until,
         };
 
         self.print_btn.set_sensitive(false);
@@ -861,6 +884,46 @@ impl PrintState {
         *self.watched_jobs.borrow_mut() = next;
     }
 
+    /// Подтверждение + IPP-операция над заданием (Hold/Release/Restart)
+    /// и обновление очереди/журнала по успеху.
+    /// `keys` — (заголовок подтверждения, текст подтверждения, результат).
+    fn spawn_job_op(
+        self: &Rc<Self>,
+        op: ipp::JobOp,
+        token: &str,
+        job_id: u32,
+        printer_uri: String,
+        keys: (&str, &str, &str),
+    ) {
+        let (title_key, body_key, done_key) = keys;
+        let token = token.to_string();
+        let done_key = done_key.to_string();
+        let window = self.window.clone();
+        let s = self.clone();
+        confirm(
+            &window,
+            &i18n::tr(title_key),
+            &i18n::trf(body_key, &[("job", &token)]),
+            move || {
+                let s = s.clone();
+                let token_cb = token.clone();
+                crate::tasks::run_async(
+                    move || ipp::job_op(op, &printer_uri, job_id),
+                    move |result| match result {
+                        Ok(()) => {
+                            s.ctx.toast(&i18n::trf(&done_key, &[("job", &token_cb)]));
+                            s.ctx
+                                .journal
+                                .info(Category::Print, i18n::trf(&done_key, &[("job", &token_cb)]));
+                            s.refresh_queue();
+                        }
+                        Err(e) => s.ctx.toast_error(&e),
+                    },
+                );
+            },
+        );
+    }
+
     /// Быстрый фотопрофиль печати.
     fn apply_photo_profile(&self) {
         self.quality_dd.set_selected(3); // print.quality.photo
@@ -932,11 +995,74 @@ impl PrintState {
                 row_box.append(&status);
             }
             if job.state.is_terminal() {
-                // Завершённое задание: только статус, отмена недоступна.
+                // Завершённое задание: статус + «Перезапустить» (печать
+                // повторится — с подтверждением).
+                let restart_btn = gtk::Button::builder()
+                    .icon_name("view-refresh-symbolic")
+                    .tooltip_text(i18n::tr("print.restart_job"))
+                    .css_classes(["flat"])
+                    .build();
+                {
+                    let s = self.clone();
+                    let token = token.clone();
+                    let id = job.id;
+                    let uri = job.resolve_printer_uri();
+                    restart_btn.connect_clicked(move |_| {
+                        s.spawn_job_op(
+                            ipp::JobOp::Restart,
+                            &token,
+                            id,
+                            uri.clone(),
+                            (
+                                "print.restart_job",
+                                "print.restart_job_confirm",
+                                "print.job_restarted",
+                            ),
+                        );
+                    });
+                }
+                row_box.append(&restart_btn);
                 self.queue_list
                     .append(&gtk::ListBoxRow::builder().child(&row_box).build());
                 continue;
             }
+
+            // Активное задание: «Продолжить» (held) либо «Приостановить».
+            let (icon, tip_key, op, title_key, body_key, done_key) =
+                if job.state == linuxprinterg_core::domain::JobState::Held {
+                    (
+                        "media-playback-start-symbolic",
+                        "print.resume_job",
+                        ipp::JobOp::Release,
+                        "print.resume_job",
+                        "print.resume_job_confirm",
+                        "print.job_resumed",
+                    )
+                } else {
+                    (
+                        "media-playback-pause-symbolic",
+                        "print.hold_job",
+                        ipp::JobOp::Hold,
+                        "print.hold_job",
+                        "print.hold_job_confirm",
+                        "print.job_held",
+                    )
+                };
+            let action_btn = gtk::Button::builder()
+                .icon_name(icon)
+                .tooltip_text(i18n::tr(tip_key))
+                .css_classes(["flat"])
+                .build();
+            {
+                let s = self.clone();
+                let token = token.clone();
+                let id = job.id;
+                let uri = job.resolve_printer_uri();
+                action_btn.connect_clicked(move |_| {
+                    s.spawn_job_op(op, &token, id, uri.clone(), (title_key, body_key, done_key));
+                });
+            }
+            row_box.append(&action_btn);
 
             let cancel_btn = gtk::Button::builder()
                 .icon_name("edit-delete-symbolic")

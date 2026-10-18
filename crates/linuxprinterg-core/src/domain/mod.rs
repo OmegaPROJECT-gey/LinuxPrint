@@ -108,6 +108,32 @@ pub struct Job {
     /// Всего листов по заданию (0 — неизвестно).
     #[serde(default)]
     pub sheets_total: u32,
+    /// Полный URI принтера для IPP-операций (IPP `job-printer-uri`;
+    /// пусто в lpstat-fallback, который URI не сообщает).
+    #[serde(default)]
+    pub printer_uri: String,
+}
+
+impl Job {
+    /// URI принтера для IPP-операций над заданием (Hold/Release/Restart).
+    /// Точный URI берётся из IPP-ответа; lpstat-fallback не сообщает его —
+    /// для локального cupsd собирается стандартный путь `/printers/<имя>`.
+    pub fn resolve_printer_uri(&self) -> String {
+        if self.printer_uri.is_empty() {
+            let encoded: String = self
+                .printer
+                .chars()
+                .map(|c| match c {
+                    ' ' => "%20".to_string(),
+                    c if c.is_ascii_alphanumeric() || "-_.~".contains(c) => c.to_string(),
+                    c => format!("%{:02X}", c as u32),
+                })
+                .collect();
+            format!("ipp://localhost/printers/{encoded}")
+        } else {
+            self.printer_uri.clone()
+        }
+    }
 }
 
 /// Сканер, найденный SANE (`scanimage -L`). Поддерживает и eSCL/AirScan
@@ -365,4 +391,7 @@ pub struct PrintRequest {
     pub tray: Option<String>,
     /// Тип носителя (значение опции `MediaType`).
     pub media_type: Option<String>,
+    /// Отложить печать (`job-hold-until`): `no-hold`, `day-time`,
+    /// `evening`, `night`, `weekend` или `HH:MM`.
+    pub hold_until: Option<String>,
 }

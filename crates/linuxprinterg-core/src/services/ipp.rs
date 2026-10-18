@@ -148,6 +148,85 @@ pub fn encode_get_jobs(user: Option<&str>, which: WhichJobs) -> Vec<u8> {
     b
 }
 
+/// Операции IPP над заданием (RFC 8011 §5.6.2–5.6.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobOp {
+    /// Cancel-Job (0x0008) — отмена задания.
+    Cancel,
+    /// Hold-Job (0x000C) — приостановить (pending → held).
+    Hold,
+    /// Release-Job (0x000D) — продолжить (held → pending).
+    Release,
+    /// Restart-Job (0x000E) — перезапустить завершённое/отменённое.
+    Restart,
+}
+
+impl JobOp {
+    /// Код операции (operation-id запроса).
+    pub const fn code(self) -> u16 {
+        match self {
+            Self::Cancel => 0x0008,
+            Self::Hold => 0x000C,
+            Self::Release => 0x000D,
+            Self::Restart => 0x000E,
+        }
+    }
+
+    /// Имя операции (для журнала и сообщений).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Cancel => "cancel",
+            Self::Hold => "hold",
+            Self::Release => "release",
+            Self::Restart => "restart",
+        }
+    }
+}
+
+/// Запрос операции над заданием: `printer-uri` + `job-id`
+/// (состав сверен с обязательными атрибутами RFC 8011 §5.6.2).
+pub fn encode_job_op(op: JobOp, printer_uri: &str, job_id: u32, user: Option<&str>) -> Vec<u8> {
+    let mut b = Vec::with_capacity(160);
+    b.extend_from_slice(&[0x02, 0x00]); // IPP 2.0
+    b.extend_from_slice(&op.code().to_be_bytes());
+    b.extend_from_slice(&1u32.to_be_bytes()); // request-id
+    b.push(0x01); // operation-attributes-tag
+    put_attr(&mut b, 0x47, "attributes-charset", b"utf-8");
+    put_attr(&mut b, 0x48, "attributes-natural-language", b"en-us");
+    put_attr(&mut b, 0x45, "printer-uri", printer_uri.as_bytes());
+    // job-id — integer (0x21), значение 4 байта big-endian.
+    put_attr(&mut b, 0x21, "job-id", &job_id.to_be_bytes());
+    if let Some(u) = user.filter(|u| !u.trim().is_empty()) {
+        put_attr(&mut b, 0x42, "requesting-user-name", u.as_bytes());
+    }
+    b.push(0x03); // end-of-attributes
+    b
+}
+
+/// Выполнить операцию над заданием через IPP.
+///
+/// Успешные статусы 0x0000–0x0002 (ok/warnings/ignored-class); прочие —
+/// ошибка с кодом (например 0x0404, если задание уже не найдено).
+pub fn job_op(op: JobOp, printer_uri: &str, job_id: u32) -> Result<()> {
+    let user = std::env::var("USER").ok();
+    let user = user.as_deref();
+    let body = encode_job_op(op, printer_uri, job_id, user);
+    let payload = http_post_ipp(&default_target(), &body)?;
+    let msg = parse_ipp(&payload)?;
+    if msg.status > 0x0002 {
+        return Err(Error::ToolFailed {
+            tool: "ipp".into(),
+            code: msg.status as i32,
+            message: format!(
+                "операция «{}» отклонена: IPP status 0x{:04x}",
+                op.as_str(),
+                msg.status
+            ),
+        });
+    }
+    Ok(())
+}
+
 // --- Разбор ---------------------------------------------------------------
 
 /// Атрибут IPP: имя, тег значения и одно или несколько значений.
@@ -455,6 +534,7 @@ fn attrs_to_job(attrs: &[IppAttr]) -> Option<Job> {
         state,
         sheets_done,
         sheets_total,
+        printer_uri,
     })
 }
 
@@ -805,5 +885,116 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn job_op_codes_match_rfc8011() {
+        assert_eq!(JobOp::Cancel.code(), 0x0008);
+        assert_eq!(JobOp::Hold.code(), 0x000C);
+        assert_eq!(JobOp::Release.code(), 0x000D);
+        assert_eq!(JobOp::Restart.code(), 0x000E);
+    }
+
+    #[test]
+    fn encode_job_op_roundtrip() {
+        let b = encode_job_op(JobOp::Release, "ipp://localhost/printers/G3030", 7, None);
+        // Заголовок: IPP 2.0, операция 0x000D (Release-Job), request-id 1.
+        assert_eq!(&b[0..2], &[0x02, 0x00]);
+        assert_eq!(u16::from_be_bytes([b[2], b[3]]), 0x000D);
+        assert_eq!(u32::from_be_bytes([b[4], b[5], b[6], b[7]]), 1);
+        assert_eq!(b[8], 0x01, "operation-attributes-tag");
+        assert_eq!(*b.last().unwrap(), 0x03, "end-of-attributes");
+
+        // Roundtrip собственным парсером: состав и теги атрибутов.
+        let msg = parse_ipp(&b).expect("запрос должен разбираться");
+        assert_eq!(msg.status, 0x000D);
+        assert_eq!(msg.groups.len(), 1);
+        assert_eq!(msg.groups[0].tag, 0x01);
+        let attrs = &msg.groups[0].attrs;
+        let find = |n: &str| {
+            attrs
+                .iter()
+                .find(|a| a.name == n)
+                .unwrap_or_else(|| panic!("нет атрибута {n}"))
+        };
+        assert_eq!(
+            find("attributes-charset").first_str().as_deref(),
+            Some("utf-8")
+        );
+        assert_eq!(
+            find("printer-uri").first_str().as_deref(),
+            Some("ipp://localhost/printers/G3030")
+        );
+        let job_id = find("job-id");
+        assert_eq!(job_id.tag, 0x21, "job-id — integer");
+        assert_eq!(job_id.first_int(), Some(7), "job-id = 7");
+    }
+
+    #[test]
+    fn encode_job_op_with_user_and_cancel() {
+        let b = encode_job_op(
+            JobOp::Cancel,
+            "ipp://localhost/printers/X",
+            42,
+            Some("vasya"),
+        );
+        assert_eq!(u16::from_be_bytes([b[2], b[3]]), 0x0008);
+        let msg = parse_ipp(&b).unwrap();
+        let attrs = &msg.groups[0].attrs;
+        let user = attrs.iter().find(|a| a.name == "requesting-user-name");
+        assert_eq!(user.and_then(|a| a.first_str()).as_deref(), Some("vasya"));
+        let id = attrs.iter().find(|a| a.name == "job-id").unwrap();
+        assert_eq!(id.first_int(), Some(42));
+    }
+
+    #[test]
+    fn resolve_printer_uri_fallback_and_exact() {
+        let exact = Job {
+            token: "G3030-2".into(),
+            id: 2,
+            printer: "G3030".into(),
+            owner: "u".into(),
+            size: 0,
+            state: JobState::Completed,
+            sheets_done: 0,
+            sheets_total: 0,
+            printer_uri: "ipp://192.0.2.1:631/printers/G3030".into(),
+        };
+        assert_eq!(
+            exact.resolve_printer_uri(),
+            "ipp://192.0.2.1:631/printers/G3030"
+        );
+
+        let fallback = Job {
+            printer_uri: String::new(),
+            printer: "HP LaserJet".into(),
+            ..exact
+        };
+        assert_eq!(
+            fallback.resolve_printer_uri(),
+            "ipp://localhost/printers/HP%20LaserJet"
+        );
+    }
+
+    /// Живой тест: операция Release-Job над несуществующим заданием
+    /// должна дать IPP-ошибку (а не HTTP 400/обрыв) — при этом ничего
+    /// не печатается: идентификатор не существует.
+    #[test]
+    #[ignore = "нужен запущенный локальный CUPS"]
+    fn live_job_op_missing_job_is_ipp_error() {
+        let list = jobs().expect("локальный CUPS должен ответить");
+        let Some(job) = list.first() else {
+            eprintln!("очередь пуста — пропуск");
+            return;
+        };
+        let uri = job.resolve_printer_uri();
+        let err = job_op(JobOp::Release, &uri, 999_999_999)
+            .expect_err("задания с таким id не существует");
+        let text = err.to_string();
+        eprintln!("job_op → {text}");
+        assert!(
+            text.contains("IPP status"),
+            "ожидалась IPP-ошибка, получено: {text}"
+        );
     }
 }

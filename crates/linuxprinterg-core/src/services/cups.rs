@@ -257,6 +257,12 @@ pub fn build_options(req: &PrintRequest) -> Result<Vec<(String, String)>> {
             opts.push(("MediaType".into(), mt.trim().to_string()));
         }
     }
+    // Отложенная печать (job-hold-until): именованные значения или HH:MM.
+    if let Some(h) = req.hold_until.as_deref().map(str::trim) {
+        if !h.is_empty() {
+            opts.push(("job-hold-until".into(), h.to_string()));
+        }
+    }
 
     // Ленивая сверка с поддерживаемыми опциями принтера.
     if let Ok(supported) = printer_options(&req.printer) {
@@ -268,6 +274,12 @@ pub fn build_options(req: &PrintRequest) -> Result<Vec<(String, String)>> {
             req.media_type.as_deref(),
             &req.printer,
         )?;
+        // Ручное время (HH:MM) в списке choices отсутствует по определению.
+        if let Some(h) = req.hold_until.as_deref().map(str::trim) {
+            if !h.is_empty() && !h.contains(':') {
+                validate_choice(&supported, "job-hold-until", Some(h), &req.printer)?;
+            }
+        }
         if req.sides.is_duplex() {
             validate_choice(
                 &supported,
@@ -406,6 +418,7 @@ fn parse_jobs(lpstat_o: &str, state: JobState) -> Vec<Job> {
             state,
             sheets_done: 0, // lpstat не сообщает прогресс — только IPP
             sheets_total: 0,
+            printer_uri: String::new(), // lpstat не сообщает URI принтера
         });
     }
     jobs.sort_by_key(|j| std::cmp::Reverse(j.id));
@@ -607,6 +620,7 @@ ColorModel/Color Mode: *RGB Grayscale KGray
             orientation: Default::default(),
             tray: None,
             media_type: None,
+            hold_until: Some("evening".into()),
         };
         // В тестовом окружении нет lpoptions — сверка пропускается.
         let opts = build_options(&req).unwrap();
@@ -616,6 +630,31 @@ ColorModel/Color Mode: *RGB Grayscale KGray
         assert_eq!(map["sides"], "two-sided-long-edge");
         assert_eq!(map["print-color-mode"], "color");
         assert_eq!(map["Collate"], "true");
+        assert_eq!(map["job-hold-until"], "evening");
+    }
+
+    #[test]
+    fn empty_hold_until_not_sent() {
+        let req = PrintRequest {
+            printer: "X".into(),
+            file: "/tmp".into(),
+            title: "Doc".into(),
+            copies: 1,
+            page_range: None,
+            media: None,
+            sides: Default::default(),
+            color_mode: Default::default(),
+            quality: Default::default(),
+            orientation: Default::default(),
+            tray: None,
+            media_type: None,
+            hold_until: Some("   ".into()),
+        };
+        let opts = build_options(&req).unwrap();
+        assert!(
+            !opts.iter().any(|(k, _)| k == "job-hold-until"),
+            "пустая задержка не должна отправляться"
+        );
     }
 
     #[test]

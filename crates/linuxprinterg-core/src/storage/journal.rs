@@ -48,6 +48,14 @@ impl Category {
             Category::Settings => "settings",
         }
     }
+
+    /// Все категории в фиксированном порядке (для фильтров UI).
+    pub const ALL: [Category; 4] = [
+        Category::Print,
+        Category::Scan,
+        Category::System,
+        Category::Settings,
+    ];
 }
 
 /// Одна запись журнала.
@@ -180,9 +188,17 @@ impl JournalHandle {
         self.seq.fetch_add(1, Ordering::SeqCst);
     }
 
-    /// Экспорт журнала в текстовый файл.
-    pub fn export_to(&self, path: &Path) -> Result<()> {
-        let entries = self.entries();
+    /// Копия записей с фильтром по категории (`None` — все).
+    pub fn entries_filtered(&self, filter: Option<Category>) -> Vec<Entry> {
+        self.entries()
+            .into_iter()
+            .filter(|e| filter.is_none_or(|f| e.category == f))
+            .collect()
+    }
+
+    /// Экспорт журнала в текстовый файл (`filter` — только категория).
+    pub fn export_to(&self, path: &Path, filter: Option<Category>) -> Result<()> {
+        let entries = self.entries_filtered(filter);
         let mut text = String::new();
         text.push_str("# LinuxPrinterG journal\n");
         for e in entries {
@@ -203,6 +219,41 @@ impl JournalHandle {
                 .map_err(|e| Error::io(format!("создание {}", parent.display()), e))?;
         }
         std::fs::write(path, text).map_err(|e| Error::io(format!("запись {}", path.display()), e))
+    }
+
+    /// Экспорт журнала в CSV (RFC 4180: экранирование кавычек, CRLF —
+    /// корректно открывается в LibreOffice Calc/Excel), `filter` — категория.
+    pub fn export_csv_to(&self, path: &Path, filter: Option<Category>) -> Result<()> {
+        let entries = self.entries_filtered(filter);
+        let mut text = String::from("timestamp,level,category,message,path\r\n");
+        for e in entries {
+            text.push_str(&csv_field(&e.ts));
+            text.push(',');
+            text.push_str(&csv_field(e.level.as_str()));
+            text.push(',');
+            text.push_str(&csv_field(e.category.as_str()));
+            text.push(',');
+            text.push_str(&csv_field(&e.message));
+            text.push(',');
+            text.push_str(&csv_field(e.path.as_deref().unwrap_or("")));
+            text.push_str("\r\n");
+        }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::io(format!("создание {}", parent.display()), e))?;
+        }
+        std::fs::write(path, text).map_err(|e| Error::io(format!("запись {}", path.display()), e))
+    }
+}
+
+/// Поле CSV по RFC 4180: закавычивается, если содержит кавычку, запятую,
+/// перевод строки или пробел по краям; внутренние кавычки удваиваются.
+fn csv_field(s: &str) -> String {
+    let need_quotes = s.contains(['"', ',', '\n', '\r']) || s.trim() != s;
+    if need_quotes {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
     }
 }
 
@@ -246,11 +297,79 @@ mod tests {
         let j = JournalHandle::open(dir.path().join("j.json"), 10);
         j.info(Category::Scan, "сохранено: /tmp/x.pdf");
         let out = dir.path().join("export.txt");
-        j.export_to(&out).unwrap();
+        j.export_to(&out, None).unwrap();
         let text = std::fs::read_to_string(&out).unwrap();
         assert!(text.contains("LinuxPrinterG journal"));
         assert!(text.contains("scan"));
         assert!(text.contains("/tmp/x.pdf"));
+    }
+
+    #[test]
+    fn export_respects_category_filter() {
+        let dir = tempfile::tempdir().unwrap();
+        let j = JournalHandle::open(dir.path().join("j.json"), 10);
+        j.info(Category::Print, "задание 1");
+        j.info(Category::Scan, "скан 1");
+
+        let out = dir.path().join("export.txt");
+        j.export_to(&out, Some(Category::Print)).unwrap();
+        let text = std::fs::read_to_string(&out).unwrap();
+        assert!(text.contains("задание 1"));
+        assert!(!text.contains("скан 1"));
+
+        // Без фильтра — все записи.
+        let all = j.entries_filtered(None);
+        assert_eq!(all.len(), 2);
+        let print_only = j.entries_filtered(Some(Category::Print));
+        assert_eq!(print_only.len(), 1);
+        assert_eq!(print_only[0].category, Category::Print);
+    }
+
+    #[test]
+    fn csv_field_escapes_rfc4180() {
+        assert_eq!(csv_field("plain"), "plain");
+        assert_eq!(csv_field("a,b"), "\"a,b\"");
+        assert_eq!(csv_field("say \"hi\""), "\"say \"\"hi\"\"\"");
+        assert_eq!(csv_field("two\nlines"), "\"two\nlines\"");
+        assert_eq!(csv_field(" padded "), "\" padded \"");
+        assert_eq!(csv_field("edge,"), "\"edge,\"");
+    }
+
+    #[test]
+    fn export_csv_writes_header_and_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let j = JournalHandle::open(dir.path().join("j.json"), 10);
+        j.info(Category::Scan, "сохранено: /tmp/x, v2.pdf");
+        j.log(
+            Level::Error,
+            Category::System,
+            "кавычки \"внутри\"",
+            Some(Path::new("/tmp/y.pdf")),
+        );
+
+        let out = dir.path().join("sub/export.csv");
+        j.export_csv_to(&out, None).unwrap();
+        let text = std::fs::read_to_string(&out).unwrap();
+        let mut lines = text.lines();
+        assert_eq!(
+            lines.next().unwrap(),
+            "timestamp,level,category,message,path"
+        );
+        let l1 = lines.next().unwrap();
+        assert!(l1.contains("\"сохранено: /tmp/x, v2.pdf\""), "{l1}");
+        assert!(l1.contains(",scan,"), "{l1}");
+        let l2 = lines.next().unwrap();
+        assert!(l2.contains("\"кавычки \"\"внутри\"\"\""), "{l2}");
+        // Путь без спецсимволов не закавычивается (RFC 4180 — только при need).
+        assert!(l2.ends_with(",/tmp/y.pdf"), "{l2}");
+        assert!(lines.next().is_none(), "ровно две строки данных");
+
+        // Фильтр в CSV.
+        let out2 = dir.path().join("scan.csv");
+        j.export_csv_to(&out2, Some(Category::Scan)).unwrap();
+        let text2 = std::fs::read_to_string(&out2).unwrap();
+        assert!(text2.contains(",scan,"));
+        assert!(!text2.contains("system"));
     }
 
     #[test]

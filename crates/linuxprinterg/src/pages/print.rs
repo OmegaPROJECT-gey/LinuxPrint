@@ -12,7 +12,7 @@ use gtk::pango;
 
 use linuxprinterg_core::Error;
 use linuxprinterg_core::domain::{
-    Orientation, PrintColorMode, PrintQuality, PrintRequest, Printer, Sides,
+    JobState, Orientation, PrintColorMode, PrintQuality, PrintRequest, Printer, Sides,
 };
 use linuxprinterg_core::i18n;
 use linuxprinterg_core::services::{convert, cups, naming, preview};
@@ -852,14 +852,18 @@ impl PrintState {
             row_box.append(&name_label);
             row_box.append(&meta);
 
-            if job.done {
-                // Выполненное задание: только статус, отмена недоступна.
+            // Статус задания из IPP: «печатается», «выполнено», «сбой»…
+            // (Pending/Unknown — без подписи: очередь и так понятна).
+            if let Some((key, css)) = job_state_label(&job.state) {
                 let status = gtk::Label::builder()
-                    .label(i18n::tr("print.job_done"))
-                    .css_classes(["success", "caption"])
+                    .label(i18n::tr(key))
+                    .css_classes([css, "caption"])
                     .xalign(1.0)
                     .build();
                 row_box.append(&status);
+            }
+            if job.state.is_terminal() {
+                // Завершённое задание: только статус, отмена недоступна.
                 self.queue_list
                     .append(&gtk::ListBoxRow::builder().child(&row_box).build());
                 continue;
@@ -940,4 +944,19 @@ fn state_label(state: &linuxprinterg_core::domain::PrinterState) -> String {
         PrinterState::Disabled => i18n::tr("devices.state.disabled"),
         PrinterState::Unknown => i18n::tr("devices.state.unknown"),
     }
+}
+
+/// Подпись состояния задания: (ключ i18n, CSS-класс).
+/// `Pending`/`Unknown` — без подписи (`None`): в очереди это очевидно.
+fn job_state_label(state: &JobState) -> Option<(&'static str, &'static str)> {
+    use JobState::*;
+    Some(match state {
+        Pending | Unknown => return None,
+        Processing => ("print.job_state.processing", "accent"),
+        Held => ("print.job_state.held", "warning"),
+        Stopped => ("print.job_state.stopped", "warning"),
+        Completed => ("print.job_done", "success"),
+        Canceled => ("print.job_state.canceled", "dim-label"),
+        Aborted => ("print.job_state.aborted", "danger"),
+    })
 }

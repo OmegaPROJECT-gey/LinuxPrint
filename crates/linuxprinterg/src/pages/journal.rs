@@ -9,7 +9,7 @@ use gtk::glib;
 use gtk::pango;
 
 use linuxprinterg_core::i18n;
-use linuxprinterg_core::storage::journal::{Entry, Level};
+use linuxprinterg_core::storage::journal::{Category, Entry, Level};
 
 use crate::ctx::Ctx;
 use crate::window::{PageHandle, confirm, make_handle};
@@ -34,9 +34,22 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         .tooltip_text(i18n::tr("common.clear"))
         .css_classes(["flat"])
         .build();
+
+    // Фильтр по категории: 0 = все, далее Category::ALL.
+    let mut filter_labels: Vec<String> = vec![i18n::tr("journal.filter_all")];
+    filter_labels.extend(
+        Category::ALL
+            .iter()
+            .map(|c| i18n::tr(&format!("journal.category.{}", c.as_str()))),
+    );
+    let filter_refs: Vec<&str> = filter_labels.iter().map(String::as_str).collect();
+    let filter_dd = gtk::DropDown::from_strings(&filter_refs);
+    filter_dd.set_tooltip_text(Some(&i18n::tr("journal.filter_all")));
+
     header.pack_end(&clear_btn);
     header.pack_end(&export_btn);
     header.pack_end(&refresh_btn);
+    header.pack_start(&filter_dd);
     toolbar.add_top_bar(&header);
 
     let list = gtk::ListBox::builder()
@@ -68,9 +81,19 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         ctx: ctx.clone(),
         list,
         stack,
+        empty,
+        filter_dd: filter_dd.clone(),
+        filter: Cell::new(0),
         last_seq: Cell::new(0),
     });
 
+    {
+        let s = state.clone();
+        filter_dd.connect_selected_notify(move |_| {
+            s.filter.set(s.filter_dd.selected());
+            s.rebuild();
+        });
+    }
     {
         let s = state.clone();
         refresh_btn.connect_clicked(move |_| s.rebuild());
@@ -126,17 +149,37 @@ struct JournalState {
     ctx: Ctx,
     list: gtk::ListBox,
     stack: gtk::Stack,
+    empty: gtk::Label,
+    filter_dd: gtk::DropDown,
+    /// Выбранный фильтр: 0 — все категории, иначе `Category::ALL[idx - 1]`.
+    filter: Cell<u32>,
     last_seq: Cell<u64>,
 }
 
 impl JournalState {
+    /// Категория текущего фильтра (`None` — все).
+    fn selected_category(&self) -> Option<Category> {
+        match self.filter.get() {
+            0 => None,
+            i => Category::ALL.get(i as usize - 1).copied(),
+        }
+    }
+
     fn rebuild(self: &Rc<Self>) {
         while let Some(row) = self.list.row_at_index(0) {
             self.list.remove(&row);
         }
-        let mut entries = self.ctx.journal.entries();
+        let filter = self.selected_category();
+        let mut entries = self.ctx.journal.entries_filtered(filter);
         self.last_seq.set(self.ctx.journal.seq());
         if entries.is_empty() {
+            // Пусто из-за фильтра или журнала вовсе нет — разные подсказки.
+            let key = if self.ctx.journal.entries().is_empty() {
+                "journal.empty"
+            } else {
+                "journal.filter_empty"
+            };
+            self.empty.set_label(&i18n::tr(key));
             self.stack.set_visible_child_name("empty");
             return;
         }
@@ -157,8 +200,20 @@ impl JournalState {
     fn export(self: &Rc<Self>) {
         let dialog = gtk::FileDialog::builder()
             .title(i18n::tr("common.export"))
-            .initial_name(format!("linuxprinterg-journal-{}.txt", self.export_date()))
+            .initial_name(format!("linuxprinterg-journal-{}.csv", self.export_date()))
             .build();
+        // Оба формата доступны; фактический выбирается по расширению файла.
+        let csv_filter = gtk::FileFilter::new();
+        csv_filter.set_name(Some("CSV"));
+        csv_filter.add_pattern("*.csv");
+        let txt_filter = gtk::FileFilter::new();
+        txt_filter.set_name(Some("Text"));
+        txt_filter.add_pattern("*.txt");
+        let filters = gio::ListStore::new::<gtk::FileFilter>();
+        filters.append(&csv_filter);
+        filters.append(&txt_filter);
+        dialog.set_filters(Some(&filters));
+
         let s = self.clone();
         dialog.save(
             self.ctx.parent().as_ref(),
@@ -166,7 +221,16 @@ impl JournalState {
             move |result| {
                 if let Ok(file) = result {
                     if let Some(path) = file.path() {
-                        match s.ctx.journal.export_to(&path) {
+                        let category = s.selected_category();
+                        let is_csv = path
+                            .extension()
+                            .is_some_and(|e| e.eq_ignore_ascii_case("csv"));
+                        let outcome = if is_csv {
+                            s.ctx.journal.export_csv_to(&path, category)
+                        } else {
+                            s.ctx.journal.export_to(&path, category)
+                        };
+                        match outcome {
                             Ok(()) => s.ctx.toast(&i18n::trf(
                                 "journal.export_done",
                                 &[("path", &path.to_string_lossy())],

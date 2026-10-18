@@ -43,6 +43,50 @@ pub struct Printer {
     pub info: String,
 }
 
+/// Состояние задания печати (IPP RFC 8011 §5.3.7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum JobState {
+    /// Неизвестно/не запрошено (lpstat не различает состояния).
+    #[default]
+    Unknown,
+    /// Ждёт в очереди.
+    Pending,
+    /// Приостановлено (удерживается).
+    Held,
+    /// Печатается прямо сейчас.
+    Processing,
+    /// Остановлено оператором.
+    Stopped,
+    /// Отменено.
+    Canceled,
+    /// Сбой печати.
+    Aborted,
+    /// Выполнено.
+    Completed,
+}
+
+impl JobState {
+    /// Из кода состояния RFC 8011 §5.3.7; прочие коды → [`JobState::Unknown`].
+    pub fn from_ipp(code: i64) -> Self {
+        match code {
+            3 => Self::Pending,
+            4 => Self::Held,
+            5 => Self::Processing,
+            6 => Self::Stopped,
+            7 => Self::Canceled,
+            8 => Self::Aborted,
+            9 => Self::Completed,
+            _ => Self::Unknown,
+        }
+    }
+
+    /// Терминальное состояние: задание завершено, отмена/повтор не применимы.
+    pub fn is_terminal(self) -> bool {
+        matches!(self, Self::Completed | Self::Canceled | Self::Aborted)
+    }
+}
+
 /// Задание печати в очереди CUPS.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Job {
@@ -54,9 +98,10 @@ pub struct Job {
     pub owner: String,
     /// Размер в байтах (0, если неизвестен).
     pub size: u64,
-    /// Задание уже выполнено (`lpstat -W completed`), а не ждёт в очереди.
+    /// Состояние IPP (точное, через IPP-клиент) или вывод из lpstat
+    /// в fallback-режиме (`Pending`/`Completed`).
     #[serde(default)]
-    pub done: bool,
+    pub state: JobState,
 }
 
 /// Сканер, найденный SANE (`scanimage -L`). Поддерживает и eSCL/AirScan

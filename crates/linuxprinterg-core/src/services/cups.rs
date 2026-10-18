@@ -12,8 +12,9 @@ use std::time::Duration;
 
 use regex::Regex;
 
-use crate::domain::{Job, PageRange, PrintRequest, Printer, PrinterState};
+use crate::domain::{Job, JobState, PageRange, PrintRequest, Printer, PrinterState};
 use crate::error::{Error, Result};
+use crate::services::ipp;
 use crate::services::proc;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -99,26 +100,31 @@ pub fn list_printers() -> Result<Vec<Printer>> {
 
 /// Очередь печати: задания всех принтеров — ожидающие и последние выполненные.
 ///
-/// `lpstat -W not-completed -o` — активные задания (можно отменить),
-/// `lpstat -W completed -o` — последние завершённые (для истории в UI;
-/// ограничены [`COMPLETED_LIMIT`], отмена для них недоступна).
+/// Сначала пробуется **IPP** ([`ipp::jobs`]): точные состояния заданий
+/// («печатается», «приостановлено», «выполнено»). При любой ошибке —
+/// fallback на `lpstat -W … -o`, который различает только грубые
+/// `Pending`/`Completed`, но работает всегда, где есть CUPS-клиент.
+/// Выполненные ограничены [`ipp::COMPLETED_LIMIT`].
 pub fn queue() -> Result<Vec<Job>> {
     ensure_available()?;
+    match ipp::jobs() {
+        Ok(jobs) => return Ok(jobs),
+        Err(e) => tracing::debug!("IPP-статусы недоступны, используется lpstat: {e}"),
+    }
 
-    let pending = query_jobs("-W", "not-completed", false)?;
-    let mut completed = query_jobs("-W", "completed", true)?;
-    completed.truncate(COMPLETED_LIMIT);
+    let pending = query_jobs("-W", "not-completed", JobState::Pending)?;
+    let mut completed = query_jobs("-W", "completed", JobState::Completed)?;
+    completed.truncate(ipp::COMPLETED_LIMIT);
 
     let mut jobs = pending;
     jobs.extend(completed);
-    jobs.sort_by_key(|j| (j.done, std::cmp::Reverse(j.id)));
+    jobs.sort_by_key(|j| (j.state.is_terminal(), std::cmp::Reverse(j.id)));
     Ok(jobs)
 }
 
-/// Сколько последних выполненных заданий показывать в журнале очереди.
-const COMPLETED_LIMIT: usize = 10;
-
-fn query_jobs(flag: &str, value: &str, done: bool) -> Result<Vec<Job>> {
+/// Запрос заданий одной категории через `lpstat` (fallback-путь).
+/// `state` — какое состояние проставлять: lpstat не сообщает подробностей.
+fn query_jobs(flag: &str, value: &str, state: JobState) -> Result<Vec<Job>> {
     let out = proc::run("lpstat", &[flag, value, "-o"], TIMEOUT)?;
     if out.status != 0 {
         let text = out.stderr.trim();
@@ -132,7 +138,7 @@ fn query_jobs(flag: &str, value: &str, done: bool) -> Result<Vec<Job>> {
             message: text.to_string(),
         });
     }
-    Ok(parse_jobs(&out.stdout_str(), done))
+    Ok(parse_jobs(&out.stdout_str(), state))
 }
 
 /// Отправить файл на печать. Возвращает идентификатор задания.
@@ -378,7 +384,7 @@ fn parse_default_printer(lpstat_d: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn parse_jobs(lpstat_o: &str, done: bool) -> Vec<Job> {
+fn parse_jobs(lpstat_o: &str, state: JobState) -> Vec<Job> {
     let mut jobs = Vec::new();
     for line in lpstat_o.lines() {
         let tokens: Vec<&str> = line.split_whitespace().collect();
@@ -397,7 +403,7 @@ fn parse_jobs(lpstat_o: &str, done: bool) -> Vec<Job> {
             printer: printer.to_string(),
             owner: tokens[1].to_string(),
             size,
-            done,
+            state,
         });
     }
     jobs.sort_by_key(|j| std::cmp::Reverse(j.id));
@@ -527,19 +533,21 @@ device for HP_LaserJet: usb://HP/LaserJet?serial=ABC
 MFC-L2700DW-23 root 4096 Sat 17 Oct 2026 12:00:00
 HP_LaserJet-7 user 0 Sat 17 Oct 2026 12:05:00
 ";
-        let jobs = parse_jobs(out, false);
+        let jobs = parse_jobs(out, JobState::Pending);
         assert_eq!(jobs.len(), 2);
         assert_eq!(jobs[0].token, "MFC-L2700DW-23");
         assert_eq!(jobs[0].id, 23);
         assert_eq!(jobs[0].printer, "MFC-L2700DW");
         assert_eq!(jobs[0].owner, "root");
         assert_eq!(jobs[0].size, 4096);
-        assert!(!jobs[0].done, "активное задание не должно быть done");
+        assert_eq!(jobs[0].state, JobState::Pending, "активное — Pending");
+        assert!(!jobs[0].state.is_terminal());
         assert_eq!(jobs[1].id, 7);
 
         // Задания из `-W completed` помечаются выполненными.
-        let done_jobs = parse_jobs(out, true);
-        assert!(done_jobs.iter().all(|j| j.done));
+        let done_jobs = parse_jobs(out, JobState::Completed);
+        assert!(done_jobs.iter().all(|j| j.state == JobState::Completed));
+        assert!(done_jobs.iter().all(|j| j.state.is_terminal()));
     }
 
     #[test]

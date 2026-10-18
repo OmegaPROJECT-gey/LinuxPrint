@@ -2,6 +2,7 @@
 
 pub mod convert;
 pub mod cups;
+pub mod ipp;
 pub mod naming;
 pub mod ocr;
 pub mod pdf;

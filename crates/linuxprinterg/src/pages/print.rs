@@ -67,6 +67,11 @@ struct PrintState {
     media_dd: gtk::DropDown,
     tray_dd: gtk::DropDown,
     media_type_dd: gtk::DropDown,
+    /// Подгонка под лист: индекс0 = «по умолчанию» (опция не отправляется),
+    /// далее — реальные choices принтера; параллельно со списком подписей
+    /// хранятся сырые значения CUPS (`print-scaling`).
+    scaling_dd: gtk::DropDown,
+    scaling_choices: RefCell<Vec<String>>,
     sides_dd: gtk::DropDown,
     color_dd: gtk::DropDown,
     quality_dd: gtk::DropDown,
@@ -202,6 +207,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let media_dd = gtk::DropDown::from_strings(MEDIA_FALLBACK);
     let tray_dd = gtk::DropDown::from_strings(&[]);
     let media_type_dd = gtk::DropDown::from_strings(&[]);
+    let scaling_dd = gtk::DropDown::from_strings(&[&i18n::tr("print.scaling.default")]);
     let sides_dd = translated_dd(SIDES_LABELS);
     let color_dd = translated_dd(COLOR_LABELS);
     let quality_dd = translated_dd(QUALITY_LABELS);
@@ -243,6 +249,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         &i18n::tr("print.media_type"),
         &media_type_dd,
     );
+    add_grid_row(&grid, &mut row, &i18n::tr("print.scaling"), &scaling_dd);
     add_grid_row(&grid, &mut row, &i18n::tr("print.sides"), &sides_dd);
     add_grid_row(&grid, &mut row, &i18n::tr("print.color"), &color_dd);
     add_grid_row(&grid, &mut row, &i18n::tr("print.quality"), &quality_dd);
@@ -262,11 +269,24 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .tooltip_text(i18n::tr("print.photo_profile"))
         .halign(gtk::Align::Start)
         .build();
+    // Пресет фотоформата 4×6/10×15: тот же фотопрофиль + размер листа
+    // (подбирается по списку поддерживаемых медиа принтера).
+    let photo_size_btn = gtk::Button::builder()
+        .label(i18n::tr("print.photo_size"))
+        .tooltip_text(i18n::tr("print.photo_size"))
+        .halign(gtk::Align::Start)
+        .build();
+    let profiles_row = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(8)
+        .build();
+    profiles_row.append(&photo_btn);
+    profiles_row.append(&photo_size_btn);
     add_grid_row(
         &grid,
         &mut row,
         &i18n::tr("print.quick_profiles"),
-        &photo_btn,
+        &profiles_row,
     );
 
     // --- Очередь ----------------------------------------------------------
@@ -328,6 +348,8 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         media_dd,
         tray_dd,
         media_type_dd,
+        scaling_dd,
+        scaling_choices: RefCell::new(vec![String::new()]),
         sides_dd,
         color_dd,
         quality_dd,
@@ -364,6 +386,10 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     {
         let s = state.clone();
         photo_btn.connect_clicked(move |_| s.apply_photo_profile());
+    }
+    {
+        let s = state.clone();
+        photo_size_btn.connect_clicked(move |_| s.apply_photo_size_preset());
     }
     {
         let s = state.clone();
@@ -535,6 +561,26 @@ impl PrintState {
                 } else {
                     set_items(&s.media_type_dd, &media_types);
                 }
+                // Подгонка под лист: реальные choices принтера; если опция
+                // не заявлена — остаётся только «по умолчанию» (ничего не
+                // отправляем).
+                let scalings: Vec<String> = options
+                    .as_ref()
+                    .and_then(|o| o.get("print-scaling"))
+                    .cloned()
+                    .unwrap_or_default();
+                let mut labels = vec![i18n::tr("print.scaling.default")];
+                let mut choices = vec![String::new()];
+                for c in scalings {
+                    labels.push(match scaling_label_key(&c) {
+                        Some(k) => i18n::tr(k),
+                        None => c.clone(),
+                    });
+                    choices.push(c);
+                }
+                set_items(&s.scaling_dd, &labels);
+                s.scaling_dd.set_selected(0);
+                *s.scaling_choices.borrow_mut() = choices;
             },
         );
     }
@@ -729,6 +775,13 @@ impl PrintState {
             4 => Some("weekend".to_string()),
             _ => None,
         };
+        // Подгонка под лист: индекс0 — «по умолчанию» (пусто = не отправлять).
+        let print_scaling = self
+            .scaling_choices
+            .borrow()
+            .get(self.scaling_dd.selected() as usize)
+            .cloned()
+            .filter(|s| !s.is_empty());
 
         let mut req = PrintRequest {
             printer: printer.name.clone(),
@@ -744,6 +797,7 @@ impl PrintState {
             tray,
             media_type,
             hold_until,
+            print_scaling,
         };
 
         self.print_btn.set_sensitive(false);
@@ -947,6 +1001,48 @@ impl PrintState {
         self.ctx.toast(&i18n::tr("print.photo_profile_applied"));
     }
 
+    /// Пресет фотоформата 4×6/10×15: фотопрофиль + размер листа. Названия
+    /// формата у драйверов различаются (`4x6`, `10x15`, `100x150`) — ищем
+    /// по списку медиа принтера: точное совпадение, затем без borderless,
+    /// затем любое вхождение.
+    fn apply_photo_size_preset(self: &Rc<Self>) {
+        const ALIASES: [&str; 3] = ["4x6", "10x15", "100x150"];
+        self.apply_photo_profile();
+        let Some(model) = self.media_dd.model() else {
+            self.ctx.toast(&i18n::tr("print.photo_size_missing"));
+            return;
+        };
+        let texts: Vec<String> = (0..model.n_items())
+            .filter_map(|i| {
+                model
+                    .item(i)
+                    .and_then(|o| o.downcast::<gtk::StringObject>().ok())
+                    .map(|s| s.string().to_string())
+            })
+            .collect();
+        let find = |pred: &dyn Fn(&str) -> bool| -> Option<u32> {
+            texts
+                .iter()
+                .position(|t| pred(&t.to_ascii_lowercase()))
+                .map(|i| i as u32)
+        };
+        let exact = find(&|low| ALIASES.contains(&low));
+        let plain = exact.or_else(|| {
+            find(&|low| ALIASES.iter().any(|a| low.contains(*a)) && !low.contains("borderless"))
+        });
+        let hit = plain.or_else(|| find(&|low| ALIASES.iter().any(|a| low.contains(*a))));
+        match hit {
+            Some(i) => {
+                self.media_dd.set_selected(i);
+                self.ctx.toast(&i18n::trf(
+                    "print.photo_size_applied",
+                    &[("size", &texts[i as usize])],
+                ));
+            }
+            None => self.ctx.toast(&i18n::tr("print.photo_size_missing")),
+        }
+    }
+
     fn fill_queue(self: &Rc<Self>, jobs: &[linuxprinterg_core::domain::Job]) {
         // Счётчик активных заданий — в сайдбаре («Печать»).
         let active = jobs.iter().filter(|j| !j.state.is_terminal()).count() as u32;
@@ -1120,6 +1216,20 @@ fn set_items(dd: &gtk::DropDown, items: &[String]) {
         model.append(item);
     }
     dd.set_model(Some(&model));
+}
+
+/// Соответствие реальных значений `print-scaling` ключам i18n
+/// (неизвестные значения показываем как есть).
+fn scaling_label_key(choice: &str) -> Option<&'static str> {
+    match choice {
+        "auto" => Some("print.scaling.auto"),
+        "auto-fit" => Some("print.scaling.auto_fit"),
+        "fit" => Some("print.scaling.fit"),
+        "fill" => Some("print.scaling.fill"),
+        "shrink" => Some("print.scaling.shrink"),
+        "none" => Some("print.scaling.none"),
+        _ => None,
+    }
 }
 
 fn selected_text(dd: &gtk::DropDown) -> Option<String> {

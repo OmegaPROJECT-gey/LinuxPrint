@@ -288,8 +288,36 @@ pub fn build_options(req: &PrintRequest) -> Result<Vec<(String, String)>> {
                 &req.printer,
             )?;
         }
+        // Подгонка под лист (print-scaling): отправляем только когда принтер
+        // опцию заявляет, иначе молча пропускаем — «не мешаем».
+        push_print_scaling(
+            &mut opts,
+            &supported,
+            req.print_scaling.as_deref(),
+            &req.printer,
+        )?;
     }
     Ok(opts)
+}
+
+/// Добавить `print-scaling`, если принтер опцию заявляет, сверив значение
+/// со списком поддерживаемых choices. Необъявленная опция не отправляется
+/// (даже если значение валидно), пустое значение игнорируется.
+fn push_print_scaling(
+    opts: &mut Vec<(String, String)>,
+    supported: &BTreeMap<String, Vec<String>>,
+    value: Option<&str>,
+    printer: &str,
+) -> Result<()> {
+    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(());
+    };
+    if !supported.contains_key("print-scaling") {
+        return Ok(());
+    }
+    validate_choice(supported, "print-scaling", Some(value), printer)?;
+    opts.push(("print-scaling".into(), value.to_string()));
+    Ok(())
 }
 
 fn validate_choice(
@@ -334,6 +362,100 @@ pub fn add_printer_strategy() -> AddPrinterStrategy {
         "{base}/admin — откройте этот адрес в браузере и добавьте принтер; \
          либо установите пакет system-config-printer."
     ))
+}
+
+// ---------------------------------------------------------------------
+// ICC-профили драйвера (PPD `cupsICCProfile`)
+// ---------------------------------------------------------------------
+
+/// Порт веб-интерфейса локального cupsd (HTTP).
+const CUPS_WEB_PORT: u16 = 631;
+
+/// Описания ICC-профилей, объявленных в PPD принтера
+/// (`*cupsICCProfile Селектор/Описание: "файл"`), в порядке объявления,
+/// без дублей.
+///
+/// Скачивается анонимным GET `http://localhost:631/printers/<name>.ppd` —
+/// так PPD доступен и без группы `lp` (файл `/etc/cups/ppd/` обычно
+/// читает только root/cupsd). Профили применяются автоматически стеком
+/// CUPS (cupsd регистрирует их у colord) — приложение их только показывает;
+/// выбор произвольного ICC-файла через `lp` не предусмотрен ни CUPS, ни
+/// спецификацией IPP (см. CUPS PPD Extensions, `cupsICCProfile`).
+///
+/// Пустой список — норма: driverless-принтеры (IPP Everywhere) PPD-профили
+/// не объявляют.
+pub fn ppd_icc_profiles(printer: &str) -> Result<Vec<String>> {
+    let name = printer.trim();
+    if name.is_empty() || name.contains('/') || name.contains("..") {
+        return Err(Error::InvalidInput(format!(
+            "некорректное имя принтера: {printer}"
+        )));
+    }
+    let path = format!("/printers/{}.ppd", encode_path_component(name));
+    let body = ipp::http_get("localhost", CUPS_WEB_PORT, &path)?;
+    Ok(parse_ppd_icc(&String::from_utf8_lossy(&body)))
+}
+
+/// Percent-кодирование компонента URL-пути: все байты, кроме
+/// нерезервированных `[A-Za-z0-9-._~]`.
+pub fn encode_path_component(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(b as char);
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// Разобрать PPD-текст и собрать уникальные описания `cupsICCProfile`.
+///
+/// Формат строки: `*cupsICCProfile Селектор/Описание: "путь"`. В реальных
+/// PPD (например, HP) строки бывают только с языковым префиксом
+/// (`*ru.cupsICCProfile …`) — такие тоже читаем: описание профиля от
+/// локали не зависит, дубли отбрасываются.
+fn parse_ppd_icc(ppd: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in ppd.lines() {
+        let Some(rest) = line.strip_prefix('*') else {
+            continue;
+        };
+        let rest = match rest.strip_prefix("cupsICCProfile ") {
+            Some(r) => r,
+            None => {
+                // Локализованная строка: *<locale>.cupsICCProfile …
+                let Some((locale, tail)) = rest.split_once('.') else {
+                    continue;
+                };
+                if locale.is_empty()
+                    || !locale
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+                {
+                    continue;
+                }
+                match tail.strip_prefix("cupsICCProfile ") {
+                    Some(t) => t,
+                    None => continue,
+                }
+            }
+        };
+        // rest = `Селектор/Описание: "путь"` (путь не нужен).
+        let Some((selector_desc, _)) = rest.split_once(':') else {
+            continue;
+        };
+        let Some((_, desc)) = selector_desc.split_once('/') else {
+            continue;
+        };
+        let desc = desc.trim();
+        if !desc.is_empty() && !out.iter().any(|d| d == desc) {
+            out.push(desc.to_string());
+        }
+    }
+    out
 }
 
 // ---------------------------------------------------------------------
@@ -621,6 +743,7 @@ ColorModel/Color Mode: *RGB Grayscale KGray
             tray: None,
             media_type: None,
             hold_until: Some("evening".into()),
+            print_scaling: None,
         };
         // В тестовом окружении нет lpoptions — сверка пропускается.
         let opts = build_options(&req).unwrap();
@@ -649,6 +772,7 @@ ColorModel/Color Mode: *RGB Grayscale KGray
             tray: None,
             media_type: None,
             hold_until: Some("   ".into()),
+            print_scaling: None,
         };
         let opts = build_options(&req).unwrap();
         assert!(
@@ -664,5 +788,116 @@ ColorModel/Color Mode: *RGB Grayscale KGray
         assert!(check_printable_file(Path::new("/nonexistent/x.pdf")).is_err());
         assert!(is_office_document(Path::new("report.docx")));
         assert!(!is_office_document(Path::new("photo.png")));
+    }
+
+    fn scaling_map(choices: &[&str]) -> BTreeMap<String, Vec<String>> {
+        if choices.is_empty() {
+            return BTreeMap::new();
+        }
+        let mut m = BTreeMap::new();
+        m.insert(
+            "print-scaling".to_string(),
+            choices.iter().map(|s| s.to_string()).collect(),
+        );
+        m
+    }
+
+    #[test]
+    fn print_scaling_sent_when_printer_supports_it() {
+        let supported = scaling_map(&["auto", "fit", "fill", "none"]);
+        let mut opts = Vec::new();
+        push_print_scaling(&mut opts, &supported, Some("fit"), "X").unwrap();
+        assert_eq!(opts, vec![("print-scaling".to_string(), "fit".to_string())]);
+    }
+
+    #[test]
+    fn print_scaling_skipped_when_not_declared() {
+        // Принтер не заявляет опцию — значение (даже валидное) не мешаем.
+        let supported = scaling_map(&[]);
+        let mut opts = Vec::new();
+        push_print_scaling(&mut opts, &supported, Some("fit"), "X").unwrap();
+        assert!(opts.is_empty());
+        // Пустое значение тоже не отправляется.
+        let supported = scaling_map(&["auto", "fit"]);
+        let mut opts = Vec::new();
+        push_print_scaling(&mut opts, &supported, Some("   "), "X").unwrap();
+        push_print_scaling(&mut opts, &supported, None, "X").unwrap();
+        assert!(opts.is_empty());
+    }
+
+    #[test]
+    fn print_scaling_rejects_unknown_value() {
+        let supported = scaling_map(&["auto", "fit", "fill", "none"]);
+        let mut opts = Vec::new();
+        let err = push_print_scaling(&mut opts, &supported, Some("stretch"), "X").unwrap_err();
+        assert!(err.to_string().contains("print-scaling=stretch"));
+        assert!(opts.is_empty(), "неверное значение не должно отправляться");
+    }
+
+    #[test]
+    fn ppd_icc_parsed_from_base_lines() {
+        // Формат из CUPS PPD Extensions (базовые строки без локали).
+        let ppd = r#"
+*% comment
+*cupsICCProfile CMYK..360dpi/360dpi CMYK: "/Library/Printers/vendor/Profiles/foo-360-cmyk.icc"
+*cupsICCProfile RGB.Glossy.720dpi/720dpi Glossy: "/path/foo-720-glossy-rgb.icc"
+*cupsICCProfile ../Default: "/path/foo-default.icc"
+*OpenUI *PageSize/Page Size: PickOne
+"#;
+        assert_eq!(
+            parse_ppd_icc(ppd),
+            vec!["360dpi CMYK", "720dpi Glossy", "Default"]
+        );
+    }
+
+    #[test]
+    fn ppd_icc_parsed_from_localized_lines_with_dedup() {
+        // Реальные строки HP Color LaserJet PS: только языковые префиксы,
+        // описания повторяются между локалями.
+        let ppd = "\
+*da.cupsICCProfile RGB../sRGB Matching Profile: \"\"
+*da.cupsICCProfile CMYK../CMYK Matching Profile: \"\"
+*de.cupsICCProfile RGB../sRGB Matching Profile: \"\"
+*de.cupsICCProfile Gray../Gray Matching Profile: \"\"
+*OpenUI *ColorModel/Color Mode: PickOne
+";
+        assert_eq!(
+            parse_ppd_icc(ppd),
+            vec![
+                "sRGB Matching Profile",
+                "CMYK Matching Profile",
+                "Gray Matching Profile"
+            ]
+        );
+        // Чужие атрибуты с точкой не принимаются.
+        assert!(parse_ppd_icc("*ru.media.Tray/Лоток: \"x\"").is_empty());
+    }
+
+    #[test]
+    fn path_component_percent_encoded() {
+        assert_eq!(encode_path_component("G3030"), "G3030");
+        assert_eq!(encode_path_component("My Printer"), "My%20Printer");
+        assert_eq!(encode_path_component("a/b"), "a%2Fb");
+        // Нерезервированные байты UTF-8 кодируются по байтам.
+        assert_eq!(
+            encode_path_component("Принтер"),
+            "%D0%9F%D1%80%D0%B8%D0%BD%D1%82%D0%B5%D1%80"
+        );
+    }
+
+    #[test]
+    fn icc_profiles_reject_bad_printer_names() {
+        assert!(ppd_icc_profiles("").is_err());
+        assert!(ppd_icc_profiles("../etc").is_err());
+        assert!(ppd_icc_profiles("a/b").is_err());
+    }
+
+    #[test]
+    #[ignore = "нужен запущенный локальный CUPS"]
+    fn live_ppd_icc_profiles_from_local_cups() {
+        // Driverless-принтер может не объявлять профилей — важно, что
+        // HTTP GET PPD работает без прав группы lp.
+        let profiles = ppd_icc_profiles("G3030").expect("PPD должен скачиваться анонимно");
+        eprintln!("ICC-профили G3030: {profiles:?}");
     }
 }

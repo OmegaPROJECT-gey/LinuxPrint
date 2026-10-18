@@ -463,6 +463,37 @@ pub fn http_post_ipp(target: &Target, body: &[u8]) -> Result<Vec<u8>> {
     Ok(payload)
 }
 
+/// HTTP GET к локальному cupsd (веб-интерфейс, например
+/// `/printers/<name>.ppd`) → тело ответа (только статус 200).
+///
+/// `path` должен быть уже percent-кодированным (см.
+/// [`crate::services::cups::encode_path_component`]).
+pub fn http_get(host: &str, port: u16, path: &str) -> Result<Vec<u8>> {
+    let head = format!(
+        "GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUser-Agent: LinuxPrinterG\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+    );
+    let addr = (host, port)
+        .to_socket_addrs()
+        .map_err(|e| Error::io(format!("адрес {host}:{port}"), e))?
+        .next()
+        .ok_or_else(|| Error::InvalidInput(format!("адрес {host}:{port} не разрешён")))?;
+    let mut s = TcpStream::connect_timeout(&addr, TIMEOUT)
+        .map_err(|e| Error::io(format!("соединение {host}:{port}"), e))?;
+    let _ = s.set_read_timeout(Some(TIMEOUT));
+    let _ = s.set_write_timeout(Some(TIMEOUT));
+    write_all(&mut s, head.as_bytes())?;
+    let response = read_to_end(&mut s)?;
+    let (status, payload) = split_http_response(&response)?;
+    if status != 200 {
+        return Err(Error::ToolFailed {
+            tool: "http".into(),
+            code: status as i32,
+            message: format!("HTTP {status} от {host}:{port}"),
+        });
+    }
+    Ok(payload)
+}
+
 // --- Чтение заданий -------------------------------------------------------
 
 /// Запросить задания одного класса и разобрать их в доменные [`Job`].

@@ -222,22 +222,47 @@ impl DevicesState {
             }
 
             {
-                let ctx = self.ctx.clone();
                 let name = printer.name.clone();
                 let uri = printer.uri.clone();
                 let state = printer.state;
                 row.connect_activated(move |_| {
-                    let body = format!(
-                        "{}: {}\n{}: {}\n{}: {}",
-                        i18n::tr("print.printer"),
-                        name,
-                        i18n::tr("devices.uri"),
-                        uri,
-                        i18n::tr("devices.details"),
-                        state_text(&state),
+                    // ICC-профили драйвера читаем из PPD анонимным HTTP к
+                    // cupsd — в фоне; при ошибке строка просто опускается.
+                    let task_name = name.clone();
+                    let dialog_name = name.clone();
+                    let dialog_uri = uri.clone();
+                    tasks::run_async(
+                        move || cups::ppd_icc_profiles(&task_name),
+                        move |icc| {
+                            let mut body = format!(
+                                "{}: {}\n{}: {}\n{}: {}",
+                                i18n::tr("print.printer"),
+                                dialog_name,
+                                i18n::tr("devices.uri"),
+                                dialog_uri,
+                                i18n::tr("devices.details"),
+                                state_text(&state),
+                            );
+                            if let Ok(profiles) = icc {
+                                body.push('\n');
+                                if profiles.is_empty() {
+                                    body.push_str(&format!(
+                                        "{}: {}",
+                                        i18n::tr("devices.icc_title"),
+                                        i18n::tr("devices.icc_none")
+                                    ));
+                                } else {
+                                    body.push_str(&format!(
+                                        "{}: {} — {}",
+                                        i18n::tr("devices.icc_title"),
+                                        profiles.join(", "),
+                                        i18n::tr("devices.icc_auto")
+                                    ));
+                                }
+                            }
+                            show_message(None::<&gtk::Widget>, &dialog_name, &body);
+                        },
                     );
-                    show_message(None::<&gtk::Widget>, &name, &body);
-                    let _ = &ctx;
                 });
             }
             self.printers_holder.append(&row);

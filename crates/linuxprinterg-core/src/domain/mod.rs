@@ -394,4 +394,8 @@ pub struct PrintRequest {
     /// Отложить печать (`job-hold-until`): `no-hold`, `day-time`,
     /// `evening`, `night`, `weekend` или `HH:MM`.
     pub hold_until: Option<String>,
+    /// Подгонка под лист (`print-scaling`): `auto`, `auto-fit`, `fit`,
+    /// `fill`, `shrink`, `none`. Отправляется только если принтер опцию
+    /// заявляет (см. `services::cups::build_options`).
+    pub print_scaling: Option<String>,
 }

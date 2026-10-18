@@ -361,6 +361,23 @@ pub fn jpeg_dimensions(data: &[u8]) -> Option<(u32, u32, bool)> {
     None
 }
 
+/// Собрать растровый файл (например WebP) в PDF через image-энкодер.
+///
+/// Используется при печати форматов, которые не все CUPS-фильтры понимают:
+/// файл конвертируется в PDF и уже отправляется в `lp`.
+pub fn image_file_to_pdf(src: &Path, out: &Path) -> Result<()> {
+    if !src.is_file() {
+        return Err(Error::InvalidInput(format!(
+            "файл не найден: {}",
+            src.display()
+        )));
+    }
+    let img = image::open(src)
+        .map_err(|e| Error::msg(format!("не удалось декодировать {}: {e}", src.display())))?;
+    // 96 dpi — дефолт для растров без физического разрешения.
+    PdfWriter::new(96).with_image(&img).save(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,6 +460,32 @@ mod tests {
     #[test]
     fn empty_writer_rejected() {
         assert!(PdfWriter::new(96).to_bytes().is_err());
+    }
+
+    #[test]
+    fn image_file_to_pdf_from_webp() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("page.webp");
+        let out = dir.path().join("page.pdf");
+        let img = DynamicImage::ImageRgb8(image::ImageBuffer::from_pixel(
+            16,
+            12,
+            image::Rgb([10u8, 20, 30]),
+        ));
+        img.save(&src).unwrap();
+
+        image_file_to_pdf(&src, &out).unwrap();
+        let bytes = std::fs::read(&out).unwrap();
+        assert!(bytes.starts_with(b"%PDF-1.5"));
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("/Count 1"));
+        assert!(text.contains("/Filter /FlateDecode"));
+
+        // Отсутствующий файл — ошибка.
+        assert!(
+            image_file_to_pdf(&dir.path().join("nope.webp"), &out).is_err(),
+            "нет файла — должна быть ошибка"
+        );
     }
 
     #[test]

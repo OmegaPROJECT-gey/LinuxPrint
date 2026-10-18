@@ -10,3 +10,4 @@ pub mod preview;
 pub mod proc;
 pub mod sane;
 pub mod save;
+pub mod tiff;

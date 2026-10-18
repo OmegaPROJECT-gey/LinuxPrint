@@ -16,7 +16,7 @@ use linuxprinterg_core::domain::{
     JobState, Orientation, PrintColorMode, PrintQuality, PrintRequest, Printer, Sides,
 };
 use linuxprinterg_core::i18n;
-use linuxprinterg_core::services::{convert, cups, naming, preview};
+use linuxprinterg_core::services::{convert, cups, naming, pdf, preview};
 use linuxprinterg_core::storage::journal::Category;
 
 use crate::ctx::Ctx;
@@ -734,6 +734,13 @@ impl PrintState {
                     }
                     let out_dir = linuxprinterg_core::storage::cache_dir().join("converted");
                     convert::to_pdf(&req.file, &out_dir)?
+                } else if naming::extension_of(&req.file) == "webp" {
+                    // WebP понимают не все CUPS-фильтры: собираем PDF
+                    // через image-энкодер и печатаем уже его.
+                    let out_dir = linuxprinterg_core::storage::cache_dir().join("converted");
+                    let out = out_dir.join(format!("{}.pdf", naming::stem_of(&req.file)));
+                    pdf::image_file_to_pdf(&req.file, &out)?;
+                    out
                 } else {
                     req.file.clone()
                 };

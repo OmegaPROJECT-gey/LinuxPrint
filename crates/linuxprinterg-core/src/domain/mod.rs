@@ -199,9 +199,9 @@ impl OutputFormat {
         }
     }
 
-    /// Многопостраничность поддерживает пока только PDF.
+    /// Многопостраничность поддерживает PDF и TIFF (один файл на скан).
     pub fn is_multi_page(self) -> bool {
-        matches!(self, OutputFormat::Pdf)
+        matches!(self, OutputFormat::Pdf | OutputFormat::Tiff)
     }
 }
 

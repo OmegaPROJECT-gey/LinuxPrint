@@ -19,6 +19,7 @@ use linuxprinterg_core::services::naming::{self, NameCtx};
 use linuxprinterg_core::services::pdf::PdfWriter;
 use linuxprinterg_core::services::proc::CancelHandle;
 use linuxprinterg_core::services::sane::{self, ScanProgress};
+use linuxprinterg_core::services::tiff::TiffWriter;
 use linuxprinterg_core::services::{ocr, save};
 use linuxprinterg_core::storage::journal::Category;
 use linuxprinterg_core::storage::settings::Settings;
@@ -684,14 +685,25 @@ impl ScanState {
         let result: Result<Vec<PathBuf>, Error> = (|| {
             let mut saved = Vec::new();
             if format.is_multi_page() {
-                let mut writer = PdfWriter::new(pages[0].dpi);
-                for page in &pages {
-                    writer.push_image(&page.image);
-                }
-                let ctx = NameCtx::now("scan", &device, "pdf");
+                // Один файл на весь скан: PDF (PdfWriter) или
+                // многостраничный TIFF (TiffWriter).
+                let ext = format.extension();
+                let ctx = NameCtx::now("scan", &device, ext);
                 let name = naming::render(&template, &ctx);
-                let path = naming::unique_path(&dir, &name, "pdf");
-                writer.save(&path)?;
+                let path = naming::unique_path(&dir, &name, ext);
+                if format == OutputFormat::Tiff {
+                    let mut writer = TiffWriter::new(pages[0].dpi);
+                    for page in &pages {
+                        writer.push_image(&page.image);
+                    }
+                    writer.save(&path)?;
+                } else {
+                    let mut writer = PdfWriter::new(pages[0].dpi);
+                    for page in &pages {
+                        writer.push_image(&page.image);
+                    }
+                    writer.save(&path)?;
+                }
                 saved.push(path);
             } else {
                 let ext = format.extension();
@@ -731,7 +743,7 @@ impl ScanState {
                     ),
                 );
             }
-            if format != OutputFormat::Pdf {
+            if !format.is_multi_page() {
                 self.show_preview_image(first);
             }
         }

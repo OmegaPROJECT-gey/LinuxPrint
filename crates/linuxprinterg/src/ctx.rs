@@ -23,6 +23,8 @@ pub struct AppCtx {
     pub devices_loaded: Cell<bool>,
     /// Родительское окно для диалогов (устанавливается окном).
     pub window: RefCell<Option<adw::ApplicationWindow>>,
+    /// Метка-счётчик активных заданий в сайдбаре (строка «Печать»).
+    pub sidebar_badge: RefCell<Option<gtk::Label>>,
 }
 
 pub type Ctx = Rc<AppCtx>;
@@ -37,6 +39,7 @@ impl AppCtx {
             scanners: RefCell::new(Vec::new()),
             devices_loaded: Cell::new(false),
             window: RefCell::new(None),
+            sidebar_badge: RefCell::new(None),
         })
     }
 
@@ -136,6 +139,29 @@ impl AppCtx {
     /// Родитель для модальных диалогов (или None).
     pub fn parent(&self) -> Option<adw::ApplicationWindow> {
         self.window.borrow().clone()
+    }
+
+    /// Системное уведомление: freedesktop Notifications (D-Bus) через
+    /// `gio::Notification`. `id` стабилен — повтор с тем же id заменяет
+    /// старое уведомление вместо дублирования.
+    pub fn notify(&self, id: &str, title: &str, body: Option<&str>) {
+        let Some(window) = self.window.borrow().clone() else {
+            return;
+        };
+        let Some(app) = window.application() else {
+            return;
+        };
+        let notification = gio::Notification::new(title);
+        notification.set_body(body);
+        app.send_notification(Some(id), &notification);
+    }
+
+    /// Счётчик активных заданий в сайдбаре (0 — метка скрыта).
+    pub fn set_queue_badge(&self, count: u32) {
+        if let Some(badge) = self.sidebar_badge.borrow().as_ref() {
+            badge.set_visible(count > 0);
+            badge.set_label(&count.to_string());
+        }
     }
 }
 

@@ -52,6 +52,21 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
         sidebar_list.append(&sidebar_row(icon, &i18n::tr(label_key)));
     }
 
+    // Счётчик активных заданий в строке «Печать»: обновляется из очереди
+    // печати через Ctx::set_queue_badge (скрыт, когда счётчик0).
+    let queue_badge = gtk::Label::builder()
+        .label("0")
+        .css_classes(["osd", "caption"])
+        .margin_start(6)
+        .visible(false)
+        .build();
+    if let Some(row) = sidebar_list.row_at_index(0) {
+        if let Some(row_box) = row.child().and_then(|c| c.downcast::<gtk::Box>().ok()) {
+            row_box.append(&queue_badge);
+        }
+    }
+    *ctx.sidebar_badge.borrow_mut() = Some(queue_badge);
+
     let sidebar_scroll = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
         .child(&sidebar_list)

@@ -2,6 +2,7 @@
 //! параметры, отправка в CUPS, очередь с отменой заданий.
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -70,6 +71,9 @@ struct PrintState {
     queue_stack: gtk::Stack,
     /// Подряд идущие неудачи опроса CUPS (автообновление отключается).
     queue_failures: Cell<u32>,
+    /// Токены заданий, находящихся под наблюдением: когда такое задание
+    /// завершится, пришлётся системное уведомление (см. detect_completions).
+    watched_jobs: RefCell<HashSet<String>>,
 }
 
 pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHandle) {
@@ -324,6 +328,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         queue_list,
         queue_stack,
         queue_failures: Cell::new(0),
+        watched_jobs: RefCell::new(HashSet::new()),
     });
 
     // --- Сигналы ----------------------------------------------------------
@@ -774,6 +779,7 @@ impl PrintState {
         crate::tasks::run_async(cups::queue, move |result| match result {
             Ok(jobs) => {
                 s.queue_failures.set(0);
+                s.detect_completions(&jobs);
                 s.fill_queue(&jobs);
             }
             Err(e) => {
@@ -794,6 +800,58 @@ impl PrintState {
             return;
         }
         self.refresh_queue();
+    }
+
+    /// Отслеживание завершений заданий (вызывается только при успешном
+    /// опросе): активные задания становятся «наблюдаемыми», а перешедшие в
+    /// терминальное состояние — порождают системное уведомление
+    /// (freedesktop Notifications, D-Bus через `gio`) и запись в журнал.
+    ///
+    /// Опрос ошибся → вызов пропускается: пустой список из-за сбоя CUPS
+    /// не должен разбудить уведомления обо всех заданиях сразу.
+    fn detect_completions(&self, jobs: &[linuxprinterg_core::domain::Job]) {
+        // Всё под одним borrow вычисляется здесь: ниже нужен borrow_mut.
+        let (finished, gone, next) = {
+            let watched = self.watched_jobs.borrow();
+            let finished: Vec<(&str, Option<String>)> = jobs
+                .iter()
+                .filter(|job| job.state.is_terminal() && watched.contains(&job.token))
+                .map(|job| {
+                    (
+                        job.token.as_str(),
+                        job_state_label(job).map(|(text, _)| text),
+                    )
+                })
+                .collect();
+            // Были под наблюдением, но из списка исчезли (очищена история
+            // или задание удалено извне) — сообщаем без статуса.
+            let gone: Vec<String> = watched
+                .iter()
+                .filter(|t| !jobs.iter().any(|j| &j.token == *t))
+                .cloned()
+                .collect();
+            let next: HashSet<String> = jobs
+                .iter()
+                .filter(|j| !j.state.is_terminal())
+                .map(|j| j.token.clone())
+                .collect();
+            (finished, gone, next)
+        };
+
+        for (token, state_text) in finished {
+            let title = i18n::trf("notify.job_finished", &[("job", token)]);
+            let body = state_text.unwrap_or_else(|| i18n::tr("print.job_done"));
+            self.ctx
+                .notify(&format!("job-finished-{token}"), &title, Some(&body));
+            self.ctx.journal.info(Category::Print, title);
+        }
+        for token in gone {
+            let text = i18n::trf("notify.job_gone", &[("job", &token)]);
+            self.ctx
+                .notify(&format!("job-finished-{token}"), &text, None);
+            self.ctx.journal.info(Category::Print, text);
+        }
+        *self.watched_jobs.borrow_mut() = next;
     }
 
     /// Быстрый фотопрофиль печати.
@@ -820,6 +878,10 @@ impl PrintState {
     }
 
     fn fill_queue(self: &Rc<Self>, jobs: &[linuxprinterg_core::domain::Job]) {
+        // Счётчик активных заданий — в сайдбаре («Печать»).
+        let active = jobs.iter().filter(|j| !j.state.is_terminal()).count() as u32;
+        self.ctx.set_queue_badge(active);
+
         while let Some(child) = self.queue_list.row_at_index(0) {
             self.queue_list.remove(&child);
         }

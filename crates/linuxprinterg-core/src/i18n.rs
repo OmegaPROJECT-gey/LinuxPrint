@@ -111,6 +111,8 @@ pub const ALL_KEYS: &[&str] = &[
     "print.job_state.stopped",
     "print.job_state.canceled",
     "print.job_state.aborted",
+    "notify.job_finished",
+    "notify.job_gone",
     "print.quick_profiles",
     "print.cancel_job",
     "print.cancel_job_confirm",
@@ -318,6 +320,11 @@ fn entry(key: &str) -> Option<(&'static str, &'static str)> {
         "print.job_state.stopped" => ("Stopped", "Остановлено"),
         "print.job_state.canceled" => ("Cancelled", "Отменено"),
         "print.job_state.aborted" => ("Failed", "Сбой"),
+        "notify.job_finished" => ("Job {job} finished", "Задание {job} завершено"),
+        "notify.job_gone" => (
+            "Job {job} is no longer in the queue",
+            "Задание {job} больше нет в очереди",
+        ),
         "print.quick_profiles" => ("Quick profiles", "Быстрые профили"),
         "print.cancel_job" => ("Cancel job", "Отменить задание"),
         "print.cancel_job_confirm" => (

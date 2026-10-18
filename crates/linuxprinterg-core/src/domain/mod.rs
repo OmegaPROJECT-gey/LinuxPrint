@@ -102,6 +102,12 @@ pub struct Job {
     /// в fallback-режиме (`Pending`/`Completed`).
     #[serde(default)]
     pub state: JobState,
+    /// Отпечатано листов (0, если неизвестно; lpstat об этом не сообщает).
+    #[serde(default)]
+    pub sheets_done: u32,
+    /// Всего листов по заданию (0 — неизвестно).
+    #[serde(default)]
+    pub sheets_total: u32,
 }
 
 /// Сканер, найденный SANE (`scanimage -L`). Поддерживает и eSCL/AirScan

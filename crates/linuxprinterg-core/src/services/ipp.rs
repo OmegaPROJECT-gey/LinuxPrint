@@ -137,6 +137,9 @@ pub fn encode_get_jobs(user: Option<&str>, which: WhichJobs) -> Vec<u8> {
     put_more(&mut b, 0x44, b"job-originating-user-name");
     put_more(&mut b, 0x44, b"job-printer-uri");
     put_more(&mut b, 0x44, b"job-state-reasons");
+    // Прогресс печати: отпечатано/всего листов (RFC 8011 §5.3.17/5.3.20).
+    put_more(&mut b, 0x44, b"job-media-sheets-completed");
+    put_more(&mut b, 0x44, b"job-media-sheets");
     if let Some(u) = user.filter(|u| !u.trim().is_empty()) {
         put_attr(&mut b, 0x42, "requesting-user-name", u.as_bytes());
     }
@@ -433,6 +436,14 @@ fn attrs_to_job(attrs: &[IppAttr]) -> Option<Job> {
         .unwrap_or(0)
         .max(0)
         .saturating_mul(1024) as u64; // job-k-octets — килобайты (как у lpstat)
+    let sheets_done = get("job-media-sheets-completed")
+        .and_then(|a| a.first_int())
+        .unwrap_or(0)
+        .max(0) as u32;
+    let sheets_total = get("job-media-sheets")
+        .and_then(|a| a.first_int())
+        .unwrap_or(0)
+        .max(0) as u32;
     Some(Job {
         token: format!("{printer}-{id}"),
         id: id as u32,
@@ -442,6 +453,8 @@ fn attrs_to_job(attrs: &[IppAttr]) -> Option<Job> {
             .unwrap_or_default(),
         size,
         state,
+        sheets_done,
+        sheets_total,
     })
 }
 
@@ -569,6 +582,13 @@ mod tests {
         // job-state — enum (0x23), именно так его отдаёт cupsd.
         put_attr(&mut b, 0x23, "job-state", &5i32.to_be_bytes());
         put_attr(&mut b, 0x44, "job-state-reasons", b"printing-to-device");
+        put_attr(
+            &mut b,
+            0x21,
+            "job-media-sheets-completed",
+            &3i32.to_be_bytes(),
+        );
+        put_attr(&mut b, 0x21, "job-media-sheets", &10i32.to_be_bytes());
         // Задание 2: выполнено, имя с пробелом в URI принтера.
         b.push(0x02);
         put_attr(&mut b, 0x21, "job-id", &7i32.to_be_bytes());
@@ -606,11 +626,18 @@ mod tests {
         assert_eq!(j1.size, 10 * 1024);
         assert_eq!(j1.state, JobState::Processing);
         assert!(!j1.state.is_terminal(), "печатается — не терминально");
+        assert_eq!(j1.sheets_done, 3, "прогресс: отпечатано листов");
+        assert_eq!(j1.sheets_total, 10);
 
         let j2 = &jobs[1];
         assert_eq!(j2.token, "My Printer-7", "%XX декодируется");
         assert_eq!(j2.state, JobState::Completed);
         assert!(j2.state.is_terminal());
+        assert_eq!(
+            (j2.sheets_done, j2.sheets_total),
+            (0, 0),
+            "без атрибутов — неизвестный прогресс, а не мусор"
+        );
     }
 
     #[test]

@@ -404,6 +404,8 @@ fn parse_jobs(lpstat_o: &str, state: JobState) -> Vec<Job> {
             owner: tokens[1].to_string(),
             size,
             state,
+            sheets_done: 0, // lpstat не сообщает прогресс — только IPP
+            sheets_total: 0,
         });
     }
     jobs.sort_by_key(|j| std::cmp::Reverse(j.id));

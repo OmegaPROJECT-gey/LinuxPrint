@@ -852,11 +852,11 @@ impl PrintState {
             row_box.append(&name_label);
             row_box.append(&meta);
 
-            // Статус задания из IPP: «печатается», «выполнено», «сбой»…
-            // (Pending/Unknown — без подписи: очередь и так понятна).
-            if let Some((key, css)) = job_state_label(&job.state) {
+            // Статус задания из IPP: «печатается», «выполнено», «сбой»… +
+            // прогресс листов, если принтер их сообщает.
+            if let Some((text, css)) = job_state_label(job) {
                 let status = gtk::Label::builder()
-                    .label(i18n::tr(key))
+                    .label(text)
                     .css_classes([css, "caption"])
                     .xalign(1.0)
                     .build();
@@ -946,17 +946,34 @@ fn state_label(state: &linuxprinterg_core::domain::PrinterState) -> String {
     }
 }
 
-/// Подпись состояния задания: (ключ i18n, CSS-класс).
+/// Подпись состояния задания: (текст, CSS-класс).
 /// `Pending`/`Unknown` — без подписи (`None`): в очереди это очевидно.
-fn job_state_label(state: &JobState) -> Option<(&'static str, &'static str)> {
+/// Для `Processing` с известным числом листов — прогресс «стр. X из Y».
+fn job_state_label(job: &linuxprinterg_core::domain::Job) -> Option<(String, &'static str)> {
     use JobState::*;
-    Some(match state {
+    let text = match job.state {
         Pending | Unknown => return None,
-        Processing => ("print.job_state.processing", "accent"),
-        Held => ("print.job_state.held", "warning"),
-        Stopped => ("print.job_state.stopped", "warning"),
-        Completed => ("print.job_done", "success"),
-        Canceled => ("print.job_state.canceled", "dim-label"),
-        Aborted => ("print.job_state.aborted", "danger"),
-    })
+        Processing if job.sheets_total > 0 => i18n::trf(
+            "print.job_state.processing_of",
+            &[
+                ("done", &job.sheets_done.to_string()),
+                ("total", &job.sheets_total.to_string()),
+            ],
+        ),
+        Processing => i18n::tr("print.job_state.processing"),
+        Held => i18n::tr("print.job_state.held"),
+        Stopped => i18n::tr("print.job_state.stopped"),
+        Completed => i18n::tr("print.job_done"),
+        Canceled => i18n::tr("print.job_state.canceled"),
+        Aborted => i18n::tr("print.job_state.aborted"),
+    };
+    let css = match job.state {
+        Pending | Unknown => return None,
+        Processing => "accent",
+        Held | Stopped => "warning",
+        Completed => "success",
+        Canceled => "dim-label",
+        Aborted => "danger",
+    };
+    Some((text, css))
 }

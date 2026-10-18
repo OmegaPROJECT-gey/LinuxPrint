@@ -106,6 +106,7 @@ pub const ALL_KEYS: &[&str] = &[
     "print.queue_empty",
     "print.job_done",
     "print.job_state.processing",
+    "print.job_state.processing_of",
     "print.job_state.held",
     "print.job_state.stopped",
     "print.job_state.canceled",
@@ -309,6 +310,10 @@ fn entry(key: &str) -> Option<(&'static str, &'static str)> {
         "print.queue_empty" => ("Queue is empty", "Очередь пуста"),
         "print.job_done" => ("Completed", "Выполнено"),
         "print.job_state.processing" => ("Printing", "В обработке"),
+        "print.job_state.processing_of" => (
+            "Printing, sheet {done} of {total}",
+            "В обработке, лист {done} из {total}",
+        ),
         "print.job_state.held" => ("On hold", "Приостановлено"),
         "print.job_state.stopped" => ("Stopped", "Остановлено"),
         "print.job_state.canceled" => ("Cancelled", "Отменено"),

@@ -31,6 +31,29 @@ pub enum ScanProgress {
     PageStarted { page: usize, total: Option<usize> },
     /// Страница `page` получена.
     PageDone { page: usize, total: Option<usize> },
+    /// Постраничный процент из `scanimage --progress` (0..=100).
+    Percent {
+        page: usize,
+        total: Option<usize>,
+        percent: u8,
+    },
+}
+
+/// Извлечь процент из фрагмента stderr вида `Progress: 45.3%` / `100%`.
+///
+/// Формат вывода `scanimage --progress` у разных версий sane-backends
+/// отличается, поэтому парсится терпимо: последнее число перед `%`.
+pub fn parse_progress_percent(fragment: &str) -> Option<u8> {
+    use std::sync::OnceLock;
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"(\d+(?:\.\d+)?)\s*%").expect("корректный regex"));
+    let mut best: Option<f64> = None;
+    for caps in re.captures_iter(fragment) {
+        if let Ok(v) = caps[1].parse::<f64>() {
+            best = Some(v);
+        }
+    }
+    best.map(|v| v.clamp(0.0, 100.0).round() as u8)
 }
 
 /// Проверить наличие `scanimage`.
@@ -203,7 +226,7 @@ pub fn scan_pages(
     req: &ScanRequest,
     opts: &ScannerOptions,
     cancel: &CancelHandle,
-    mut progress: impl FnMut(ScanProgress),
+    progress: impl Fn(ScanProgress) + Send + Sync + 'static,
 ) -> Result<Vec<ScanPage>> {
     ensure_available()?;
     if req.scanner_id.trim().is_empty() {
@@ -220,12 +243,17 @@ pub fn scan_pages(
     };
     let limit = total.unwrap_or(200); // защита от бесконечной ADF-петли
 
+    // Общий доступ: процент приходит из потока чтения stderr, события
+    // страниц — из рабочего потока.
+    let progress = std::sync::Arc::new(progress);
+    let emit = &*progress;
+
     let mut pages: Vec<ScanPage> = Vec::new();
     for index in 1..=limit {
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        progress(ScanProgress::PageStarted { page: index, total });
+        emit(ScanProgress::PageStarted { page: index, total });
         let mut args: Vec<String> = vec![
             format!("--device-name={}", req.scanner_id),
             format!("--resolution={}", req.resolution.clamp(50, 4800)),
@@ -239,6 +267,8 @@ pub fn scan_pages(
             format!("--source={}", req.source),
             // pnm — формат, встроенный в sane-backends, без внешних зависимостей.
             "--format=pnm".to_string(),
+            // Процент выполнения — в stderr, потоком читается хуком ниже.
+            "--progress".to_string(),
         ];
         if let Some(crop) = &req.crop {
             // Ограничиваем запрошенную область границами устройства.
@@ -249,7 +279,24 @@ pub fn scan_pages(
             args.push(format!("-h={:.2}", crop.h.max(1.0)));
         }
 
-        let out = proc::run_cancellable("scanimage", &args, page_timeout(req.resolution), cancel);
+        // Потоковый процент страницы `index` из stderr scanimage.
+        let progress_for_page = progress.clone();
+        let hook: proc::StderrHook = std::sync::Arc::new(move |frag: &str| {
+            if let Some(percent) = parse_progress_percent(frag) {
+                (*progress_for_page)(ScanProgress::Percent {
+                    page: index,
+                    total,
+                    percent,
+                });
+            }
+        });
+        let out = proc::run_cancellable_with_stderr(
+            "scanimage",
+            &args,
+            page_timeout(req.resolution),
+            cancel,
+            hook,
+        );
 
         let out = match out {
             Ok(o) if o.status == 0 && !o.stdout.is_empty() => o,
@@ -281,7 +328,7 @@ pub fn scan_pages(
             image,
             dpi: req.resolution,
         });
-        progress(ScanProgress::PageDone { page: index, total });
+        emit(ScanProgress::PageDone { page: index, total });
 
         if let Some(t) = total {
             if index >= t {
@@ -427,6 +474,19 @@ device `escl:https://192.168.1.5:443' is a HP LaserJet MFP M130fw eSCL
         let ppm = b"P6\n2 1\n255\n\xff\x00\x00\xff\x00\x00";
         let img = decode_scan_output(ppm).unwrap();
         assert_eq!((img.width(), img.height()), (2, 1));
+    }
+
+    #[test]
+    fn parses_progress_percent() {
+        assert_eq!(parse_progress_percent("Progress: 45.3%"), Some(45));
+        assert_eq!(parse_progress_percent("Progress: 45.6%"), Some(46));
+        assert_eq!(parse_progress_percent("100%"), Some(100));
+        assert_eq!(parse_progress_percent("0% done"), Some(0));
+        // Числа без `%` — не процент.
+        assert_eq!(parse_progress_percent("scanned 12 pages"), None);
+        assert_eq!(parse_progress_percent(""), None);
+        // Последнее число перед `%` берётся за процент, диапазон зажимается.
+        assert_eq!(parse_progress_percent("12 MB (150%)"), Some(100));
     }
 
     #[test]

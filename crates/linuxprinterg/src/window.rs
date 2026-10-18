@@ -94,9 +94,14 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
     // Переключение по выбору в боковой панели.
     {
         let switcher = switcher.clone();
+        let ctx = ctx.clone();
+        let window = window.clone();
         sidebar_list.connect_row_selected(move |_list, row| {
             let Some(row) = row else { return };
             let index = row.index().max(0) as u32;
+            // Страница строится ДО смены имени видимого ребёнка, иначе
+            // GtkStack получает имя ещё не добавленного child и жалуется.
+            ensure_page(&switcher, &ctx, &window, index);
             switcher.stack.set_visible_child_name(&index.to_string());
         });
     }
@@ -134,7 +139,7 @@ pub fn build(app: &adw::Application, ctx: &Ctx) -> adw::ApplicationWindow {
     ctx.toasts.set_child(Some(&split));
     window.set_content(Some(&ctx.toasts));
 
-    install_actions(app, &switcher, &sidebar_list);
+    install_actions(app, ctx, &window, &switcher, &sidebar_list);
     window
 }
 
@@ -194,7 +199,13 @@ fn sidebar_row(icon: &str, label: &str) -> gtk::ListBoxRow {
 }
 
 /// Действия приложения: выход, обновление, переключение страниц (Ctrl+1..5).
-fn install_actions(app: &adw::Application, switcher: &Rc<Switcher>, sidebar_list: &gtk::ListBox) {
+fn install_actions(
+    app: &adw::Application,
+    ctx: &Ctx,
+    window: &adw::ApplicationWindow,
+    switcher: &Rc<Switcher>,
+    sidebar_list: &gtk::ListBox,
+) {
     let quit = gio::SimpleAction::new("quit", None);
     {
         let app = app.clone();
@@ -230,7 +241,11 @@ fn install_actions(app: &adw::Application, switcher: &Rc<Switcher>, sidebar_list
         {
             let switcher = switcher.clone();
             let list = sidebar_list.clone();
+            let ctx = ctx.clone();
+            let window = window.clone();
             action.connect_activate(move |_, _| {
+                // Как и в сайдбаре: сначала построить, затем показать.
+                ensure_page(&switcher, &ctx, &window, idx);
                 switcher.stack.set_visible_child_name(&idx.to_string());
                 if let Some(row) = list.row_at_index(idx as i32) {
                     list.select_row(Some(&row));

@@ -54,6 +54,9 @@ pub struct Job {
     pub owner: String,
     /// Размер в байтах (0, если неизвестен).
     pub size: u64,
+    /// Задание уже выполнено (`lpstat -W completed`), а не ждёт в очереди.
+    #[serde(default)]
+    pub done: bool,
 }
 
 /// Сканер, найденный SANE (`scanimage -L`). Поддерживает и eSCL/AirScan

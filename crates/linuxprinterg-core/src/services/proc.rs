@@ -129,7 +129,7 @@ fn is_executable_file(p: &Path) -> bool {
 
 /// Запустить команду и дождаться результата с таймаутом.
 pub fn run<S: AsRef<OsStr>>(cmd: &str, args: &[S], timeout: Duration) -> Result<CmdOutput> {
-    run_inner(cmd, args, timeout, None)
+    run_inner(cmd, args, timeout, None, None)
 }
 
 /// Запустить команду с возможностью отмены.
@@ -140,7 +140,27 @@ pub fn run_cancellable<S: AsRef<OsStr>>(
     cancel: &CancelHandle,
 ) -> Result<CmdOutput> {
     cancel.reset();
-    run_inner(cmd, args, timeout, Some(cancel))
+    run_inner(cmd, args, timeout, Some(cancel), None)
+}
+
+/// Тип callback'а, вызываемого по мере поступления stderr (фрагментами
+/// по переводам строк/`\r`) — для потокового прогресса внешних утилит.
+pub type StderrHook = Arc<dyn Fn(&str) + Send + Sync + 'static>;
+
+/// Запустить команду с отменой и потоковым уведомлениями о stderr.
+///
+/// Полный текст stderr по-прежнему возвращается в [`CmdOutput::stderr`];
+/// hook нужен только для чтения промежуточных сообщений (например,
+/// `scanimage --progress`) во время выполнения.
+pub fn run_cancellable_with_stderr<S: AsRef<OsStr>>(
+    cmd: &str,
+    args: &[S],
+    timeout: Duration,
+    cancel: &CancelHandle,
+    on_stderr: StderrHook,
+) -> Result<CmdOutput> {
+    cancel.reset();
+    run_inner(cmd, args, timeout, Some(cancel), Some(on_stderr))
 }
 
 fn run_inner<S: AsRef<OsStr>>(
@@ -148,6 +168,7 @@ fn run_inner<S: AsRef<OsStr>>(
     args: &[S],
     timeout: Duration,
     cancel: Option<&CancelHandle>,
+    on_stderr: Option<StderrHook>,
 ) -> Result<CmdOutput> {
     let program = tool_available(cmd).ok_or_else(|| Error::ToolMissing {
         tool: cmd.to_string(),
@@ -174,12 +195,9 @@ fn run_inner<S: AsRef<OsStr>>(
             buf
         })
     });
-    let err_reader = stderr_pipe.take().map(|mut p| {
-        std::thread::spawn(move || {
-            let mut buf = String::new();
-            let _ = p.read_to_string(&mut buf);
-            buf
-        })
+    let err_reader = stderr_pipe.take().map(|p| {
+        let hook = on_stderr.clone();
+        std::thread::spawn(move || read_stderr(p, hook))
     });
 
     let shared: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(Some(child)));
@@ -261,6 +279,41 @@ fn kill_and_wait(shared: &Arc<Mutex<Option<Child>>>) {
     }
 }
 
+/// Читать stderr потоково: накапливать полный текст и отдавать hook'у
+/// фрагменты, разделённые `\n` или `\r` (так прогресс пишет `scanimage`).
+fn read_stderr(mut pipe: impl Read, hook: Option<StderrHook>) -> String {
+    let mut full = String::new();
+    let mut carry = String::new();
+    let mut chunk = [0u8; 512];
+    loop {
+        match pipe.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                let text = String::from_utf8_lossy(&chunk[..n]);
+                full.push_str(&text);
+                carry.push_str(&text);
+                while let Some(pos) = carry.find(['\n', '\r']) {
+                    let frag: String = carry.drain(..=pos).collect();
+                    let frag = frag.trim_matches(['\n', '\r']);
+                    if !frag.is_empty() {
+                        if let Some(h) = &hook {
+                            h(frag);
+                        }
+                    }
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    let tail = carry.trim();
+    if !tail.is_empty() {
+        if let Some(h) = &hook {
+            h(tail);
+        }
+    }
+    full
+}
+
 fn drain(
     out: Option<std::thread::JoinHandle<Vec<u8>>>,
     err: Option<std::thread::JoinHandle<String>>,
@@ -313,5 +366,55 @@ mod tests {
     fn missing_tool_reports_error() {
         let err = run("no-such-tool-abc", &["x"], Duration::from_secs(1)).unwrap_err();
         assert!(matches!(err, Error::ToolMissing { .. }));
+    }
+
+    #[test]
+    fn stderr_hook_receives_fragments() {
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        let hook: StderrHook = Arc::new(move |frag| {
+            seen2.lock().unwrap().push(frag.to_string());
+        });
+        let h = CancelHandle::new();
+        // \n и \r как разделители — как у scanimage --progress.
+        let out = run_cancellable_with_stderr(
+            "sh",
+            &["-c", "printf 'line1\\nline2\\rline3' >&2; printf out"],
+            Duration::from_secs(5),
+            &h,
+            hook,
+        )
+        .unwrap();
+        assert_eq!(out.status, 0);
+        assert_eq!(out.stdout, b"out");
+        assert_eq!(out.stderr, "line1\nline2\rline3");
+        let got = seen.lock().unwrap();
+        assert_eq!(got.as_slice(), ["line1", "line2", "line3"]);
+    }
+
+    #[test]
+    fn stderr_fragments_reach_hook_during_run() {
+        // Фрагменты должны приходить до завершения процесса (не только в конце).
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        let hook: StderrHook = Arc::new(move |frag| {
+            seen2.lock().unwrap().push(frag.to_string());
+        });
+        let h = CancelHandle::new();
+        let out = run_cancellable_with_stderr(
+            "sh",
+            &[
+                "-c",
+                "printf 'a\\n'; sleep 0.3; printf 'b\\n' >&2; printf 'a\\n' >&2",
+            ],
+            Duration::from_secs(5),
+            &h,
+            hook,
+        )
+        .unwrap();
+        assert_eq!(out.status, 0);
+        let got = seen.lock().unwrap();
+        assert!(got.iter().any(|f| f == "a"), "{got:?}");
+        assert!(got.iter().any(|f| f == "b"), "{got:?}");
     }
 }

@@ -619,6 +619,33 @@ impl ScanState {
                 Some(t) if t > 0 => self.progress.set_fraction(page as f64 / t as f64),
                 _ => self.progress.pulse(),
             },
+            // Постраничный процент из scanimage --progress: уточняет полосу
+            // прогресса внутри страницы (события страниц остаются ведущими).
+            ScanProgress::Percent {
+                page,
+                total,
+                percent,
+            } => {
+                let label = match total {
+                    Some(t) => i18n::trf(
+                        "scan.page_of_percent",
+                        &[
+                            ("page", &page.to_string()),
+                            ("total", &t.to_string()),
+                            ("percent", &percent.to_string()),
+                        ],
+                    ),
+                    None => i18n::trf(
+                        "scan.page_percent",
+                        &[
+                            ("page", &page.to_string()),
+                            ("percent", &percent.to_string()),
+                        ],
+                    ),
+                };
+                self.progress_label.set_label(&label);
+                self.progress.set_fraction(percent as f64 / 100.0);
+            }
         }
     }
 

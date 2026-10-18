@@ -1,7 +1,7 @@
 //! Страница «Печать»: выбор файла (кнопка/перетаскивание), предпросмотр,
 //! параметры, отправка в CUPS, очередь с отменой заданий.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -68,6 +68,8 @@ struct PrintState {
     print_btn: gtk::Button,
     queue_list: gtk::ListBox,
     queue_stack: gtk::Stack,
+    /// Подряд идущие неудачи опроса CUPS (автообновление отключается).
+    queue_failures: Cell<u32>,
 }
 
 pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHandle) {
@@ -236,6 +238,21 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         &orientation_dd,
     );
 
+    // Быстрый фотопрофиль: качество «Фото», цвет, односторонняя печать и
+    // фотобумага (если принтер сообщает тип носителя).
+    let photo_btn = gtk::Button::builder()
+        .label(i18n::tr("print.photo_profile"))
+        .icon_name("camera-photo-symbolic")
+        .tooltip_text(i18n::tr("print.photo_profile"))
+        .halign(gtk::Align::Start)
+        .build();
+    add_grid_row(
+        &grid,
+        &mut row,
+        &i18n::tr("print.quick_profiles"),
+        &photo_btn,
+    );
+
     // --- Очередь ----------------------------------------------------------
     let queue_list = gtk::ListBox::builder()
         .selection_mode(gtk::SelectionMode::None)
@@ -306,6 +323,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         print_btn: print_btn.clone(),
         queue_list,
         queue_stack,
+        queue_failures: Cell::new(0),
     });
 
     // --- Сигналы ----------------------------------------------------------
@@ -327,7 +345,15 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     }
     {
         let s = state.clone();
-        queue_refresh.connect_clicked(move |_| s.refresh_queue());
+        photo_btn.connect_clicked(move |_| s.apply_photo_profile());
+    }
+    {
+        let s = state.clone();
+        // Ручной сброс счётчика неудач: автообновление снова заработает.
+        queue_refresh.connect_clicked(move |_| {
+            s.queue_failures.set(0);
+            s.refresh_queue();
+        });
     }
     // Перетаскивание файлов на область файла.
     {
@@ -353,6 +379,16 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     let handle = make_handle(refresh.clone());
     refresh();
     state.refresh_queue();
+
+    // Автообновление очереди каждые3 секунды (см. auto_refresh_queue:
+    // после неудач опрос прекращается до ручного «Обновить»).
+    {
+        let s = state.clone();
+        glib::timeout_add_seconds_local(3, move || {
+            s.auto_refresh_queue();
+            glib::ControlFlow::Continue
+        });
+    }
 
     (toolbar.upcast::<gtk::Widget>(), handle)
 }
@@ -736,13 +772,51 @@ impl PrintState {
     fn refresh_queue(self: &Rc<Self>) {
         let s = self.clone();
         crate::tasks::run_async(cups::queue, move |result| match result {
-            Ok(jobs) => s.fill_queue(&jobs),
+            Ok(jobs) => {
+                s.queue_failures.set(0);
+                s.fill_queue(&jobs);
+            }
             Err(e) => {
+                s.queue_failures
+                    .set(s.queue_failures.get().saturating_add(1));
                 // Пустая очередь при недоступном CUPS не должна громить UI.
                 tracing::warn!("очередь недоступна: {e}");
                 s.fill_queue(&[]);
             }
         });
+    }
+
+    /// Автообновление очереди: опрашивает CUPS каждые несколько секунд,
+    /// но прекращает после двух неудач подряд (CUPS недоступен/остановлен).
+    /// Снова включается после ручного «Обновить» или успешного опроса.
+    fn auto_refresh_queue(self: &Rc<Self>) {
+        if self.queue_failures.get() >= 2 {
+            return;
+        }
+        self.refresh_queue();
+    }
+
+    /// Быстрый фотопрофиль печати.
+    fn apply_photo_profile(&self) {
+        self.quality_dd.set_selected(3); // print.quality.photo
+        self.color_dd.set_selected(0); // цвет
+        self.sides_dd.set_selected(0); // односторонняя печать
+        // Тип носителя «Photo»/«Glossy», если принтер его поддерживает.
+        if let Some(model) = self.media_type_dd.model() {
+            for i in 0..model.n_items() {
+                let text = model
+                    .item(i)
+                    .and_then(|o| o.downcast::<gtk::StringObject>().ok())
+                    .map(|s| s.string().to_ascii_lowercase());
+                if let Some(lower) = text {
+                    if lower.contains("photo") || lower.contains("glossy") {
+                        self.media_type_dd.set_selected(i);
+                        break;
+                    }
+                }
+            }
+        }
+        self.ctx.toast(&i18n::tr("print.photo_profile_applied"));
     }
 
     fn fill_queue(self: &Rc<Self>, jobs: &[linuxprinterg_core::domain::Job]) {
@@ -767,6 +841,30 @@ impl PrintState {
                 .css_classes(["dim-label"])
                 .xalign(1.0)
                 .build();
+            let row_box = gtk::Box::builder()
+                .orientation(gtk::Orientation::Horizontal)
+                .spacing(10)
+                .margin_top(8)
+                .margin_bottom(8)
+                .margin_start(12)
+                .margin_end(8)
+                .build();
+            row_box.append(&name_label);
+            row_box.append(&meta);
+
+            if job.done {
+                // Выполненное задание: только статус, отмена недоступна.
+                let status = gtk::Label::builder()
+                    .label(i18n::tr("print.job_done"))
+                    .css_classes(["success", "caption"])
+                    .xalign(1.0)
+                    .build();
+                row_box.append(&status);
+                self.queue_list
+                    .append(&gtk::ListBoxRow::builder().child(&row_box).build());
+                continue;
+            }
+
             let cancel_btn = gtk::Button::builder()
                 .icon_name("edit-delete-symbolic")
                 .tooltip_text(i18n::tr("print.cancel_job"))
@@ -810,16 +908,6 @@ impl PrintState {
                     );
                 });
             }
-            let row_box = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(10)
-                .margin_top(8)
-                .margin_bottom(8)
-                .margin_start(12)
-                .margin_end(8)
-                .build();
-            row_box.append(&name_label);
-            row_box.append(&meta);
             row_box.append(&cancel_btn);
             self.queue_list
                 .append(&gtk::ListBoxRow::builder().child(&row_box).build());

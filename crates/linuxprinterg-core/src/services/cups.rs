@@ -97,10 +97,29 @@ pub fn list_printers() -> Result<Vec<Printer>> {
     ))
 }
 
-/// Очередь печати: активные задания всех принтеров.
+/// Очередь печати: задания всех принтеров — ожидающие и последние выполненные.
+///
+/// `lpstat -W not-completed -o` — активные задания (можно отменить),
+/// `lpstat -W completed -o` — последние завершённые (для истории в UI;
+/// ограничены [`COMPLETED_LIMIT`], отмена для них недоступна).
 pub fn queue() -> Result<Vec<Job>> {
     ensure_available()?;
-    let out = proc::run("lpstat", &["-o"], TIMEOUT)?;
+
+    let pending = query_jobs("-W", "not-completed", false)?;
+    let mut completed = query_jobs("-W", "completed", true)?;
+    completed.truncate(COMPLETED_LIMIT);
+
+    let mut jobs = pending;
+    jobs.extend(completed);
+    jobs.sort_by_key(|j| (j.done, std::cmp::Reverse(j.id)));
+    Ok(jobs)
+}
+
+/// Сколько последних выполненных заданий показывать в журнале очереди.
+const COMPLETED_LIMIT: usize = 10;
+
+fn query_jobs(flag: &str, value: &str, done: bool) -> Result<Vec<Job>> {
+    let out = proc::run("lpstat", &[flag, value, "-o"], TIMEOUT)?;
     if out.status != 0 {
         let text = out.stderr.trim();
         // «No jobs in system» — не ошибка.
@@ -113,7 +132,7 @@ pub fn queue() -> Result<Vec<Job>> {
             message: text.to_string(),
         });
     }
-    Ok(parse_jobs(&out.stdout_str()))
+    Ok(parse_jobs(&out.stdout_str(), done))
 }
 
 /// Отправить файл на печать. Возвращает идентификатор задания.
@@ -359,7 +378,7 @@ fn parse_default_printer(lpstat_d: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn parse_jobs(lpstat_o: &str) -> Vec<Job> {
+fn parse_jobs(lpstat_o: &str, done: bool) -> Vec<Job> {
     let mut jobs = Vec::new();
     for line in lpstat_o.lines() {
         let tokens: Vec<&str> = line.split_whitespace().collect();
@@ -378,6 +397,7 @@ fn parse_jobs(lpstat_o: &str) -> Vec<Job> {
             printer: printer.to_string(),
             owner: tokens[1].to_string(),
             size,
+            done,
         });
     }
     jobs.sort_by_key(|j| std::cmp::Reverse(j.id));
@@ -507,14 +527,19 @@ device for HP_LaserJet: usb://HP/LaserJet?serial=ABC
 MFC-L2700DW-23 root 4096 Sat 17 Oct 2026 12:00:00
 HP_LaserJet-7 user 0 Sat 17 Oct 2026 12:05:00
 ";
-        let jobs = parse_jobs(out);
+        let jobs = parse_jobs(out, false);
         assert_eq!(jobs.len(), 2);
         assert_eq!(jobs[0].token, "MFC-L2700DW-23");
         assert_eq!(jobs[0].id, 23);
         assert_eq!(jobs[0].printer, "MFC-L2700DW");
         assert_eq!(jobs[0].owner, "root");
         assert_eq!(jobs[0].size, 4096);
+        assert!(!jobs[0].done, "активное задание не должно быть done");
         assert_eq!(jobs[1].id, 7);
+
+        // Задания из `-W completed` помечаются выполненными.
+        let done_jobs = parse_jobs(out, true);
+        assert!(done_jobs.iter().all(|j| j.done));
     }
 
     #[test]

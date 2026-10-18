@@ -1,0 +1,76 @@
+# Конфиг nfpm для LinuxPrinterG (.deb и .rpm из одного описания).
+# Версия подставляется скриптом scripts/build-packages.sh из Cargo.toml.
+# Сборка: make deb | make rpm | ./scripts/build-packages.sh all
+name: linuxprinterg
+arch: amd64
+platform: linux
+version: __VERSION__
+section: utils
+priority: optional
+maintainer: LinuxPrinterG contributors <dev@linuxprinterg.local>
+description: |
+  Printing and scanning center for CUPS and SANE.
+  LinuxPrinterG is a fast, minimalistic desktop hub for printing and
+  scanning. It works with the system services - CUPS for printing and
+  SANE (including eSCL/AirScan backends) for scanning - and uses the
+  drivers already installed in the system.
+  .
+  Features: print PDF and images with full CUPS options, print queue
+  management, scanning to PDF/PNG/JPEG/TIFF/WebP with crop and rotation,
+  optional OCR, device management, settings and an operation journal.
+vendor: LinuxPrinterG
+homepage: https://github.com/linuxprinterg/linuxprinterg
+license: MIT
+
+# Общее содержимое для обоих пакетов.
+contents:
+  - src: target/release/linuxprinterg
+    dst: /usr/bin/linuxprinterg
+    file_info:
+      mode: 0755
+  - src: crates/linuxprinterg/data/org.linuxprinterg.LinuxPrinterG.desktop
+    dst: /usr/share/applications/org.linuxprinterg.LinuxPrinterG.desktop
+    file_info:
+      mode: 0644
+  - src: crates/linuxprinterg/data/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+    dst: /usr/share/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+    file_info:
+      mode: 0644
+  - src: crates/linuxprinterg/data/icons/hicolor
+    dst: /usr/share/icons/hicolor
+  - src: LICENSE
+    dst: /usr/share/doc/linuxprinterg/copyright
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/linuxprinterg/LICENSE
+    file_info:
+      mode: 0644
+
+# Зависимости различаются между deb и rpm (имена пакетов).
+overrides:
+  deb:
+    depends:
+      - libgtk-4-1 (>= 4.14)
+      - libadwaita-1-0 (>= 1.5)
+      - cups-client
+      - poppler-utils
+    recommends:
+      - sane-utils
+      - libreoffice-core | libreoffice
+      - tesseract-ocr
+  rpm:
+    depends:
+      - gtk4 >= 4.14
+      - libadwaita >= 1.5
+      - cups-client
+      - poppler-utils
+    recommends:
+      - sane-backends
+      - libreoffice-core
+      - tesseract
+
+# Обновление кэшей рабочего стола и иконок после установки/удаления.
+scripts:
+  postinstall: packaging/postinstall.sh
+  preremove: packaging/preremove.sh

@@ -9,7 +9,7 @@ CORE       := linuxprinterg-core
 CARGO      := cargo
 DIST       := dist
 
-.PHONY: all build release test test-int fmt fmt-check clippy run clean install flatpak deb rpm appimage
+.PHONY: all build release test test-int fmt fmt-check clippy run clean install flatpak deb rpm packages appimage
 
 all: build
 
@@ -48,6 +48,8 @@ install: release
 		"$(DESTDIR)/usr/share/applications/org.linuxprinterg.LinuxPrinterG.desktop"
 	install -Dm644 crates/$(APP)/data/org.linuxprinterg.LinuxPrinterG.metainfo.xml \
 		"$(DESTDIR)/usr/share/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml"
+	install -d "$(DESTDIR)/usr/share/icons/hicolor"
+	cp -a crates/$(APP)/data/icons/hicolor/. "$(DESTDIR)/usr/share/icons/hicolor/"
 
 # --- Flatpak -------------------------------------------------------------
 # Песочница ограничивает доступ к USB (SANE) и CUPS; manifest фиксирует это явно.
@@ -57,12 +59,16 @@ flatpak:
 		crates/$(APP)/data/org.linuxprinterg.LinuxPrinterG.flatpak.yml
 
 # --- Дистрибутивы --------------------------------------------------------
+# nfpm собирает .deb и .rpm без dpkg-deb/rpmbuild; бинарник nfpm скачивается
+# в target/tools скриптом scripts/get-nfpm.sh (один раз, сеть required).
 deb: release
-	$(CARGO) deb -p $(APP) --no-strip --output $(DIST)
+	./scripts/build-packages.sh deb
 
 rpm: release
-	cargo rpm init -p $(APP) 2>/dev/null || true
-	cargo rpm build
+	./scripts/build-packages.sh rpm
+
+packages: release
+	./scripts/build-packages.sh all
 
 # AppImage: используйте linuxdeploy с GTK-плагином.
 appimage: release

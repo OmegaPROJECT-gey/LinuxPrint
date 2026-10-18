@@ -110,7 +110,15 @@ linuxprinterg/
 ├── LICENSE                         # MIT
 ├── README.md
 ├── packaging/
-│   └── linuxprinterg.spec          # RPM
+│   ├── nfpm.yml                    # описание .deb/.rpm (nfpm)
+│   ├── postinstall.sh              # кэши рабочего стола/иконок
+│   ├── preremove.sh
+│   └── linuxprinterg.spec          # альтернативная RPM-сборка (rpmbuild)
+├── scripts/
+│   ├── render-icons.py             # SVG → hicolor (librsvg + cairo)
+│   ├── get-nfpm.sh                 # загрузка nfpm в target/tools
+│   ├── build-packages.sh           # сборка .deb и .rpm
+│   └── setup-fedora-dev-prefix.sh  # префикс GTK для песочницы без root
 └── crates/
     ├── linuxprinterg-core/         # ЯДРО (без GTK)
     │   ├── Cargo.toml
@@ -144,7 +152,8 @@ linuxprinterg/
         ├── data/
         │   ├── org.linuxprinterg.LinuxPrinterG.desktop
         │   ├── org.linuxprinterg.LinuxPrinterG.metainfo.xml
-        │   └── org.linuxprinterg.LinuxPrinterG.flatpak.yml
+        │   ├── org.linuxprinterg.LinuxPrinterG.flatpak.yml
+        │   └── icons/              # иконка приложения (SVG-исходник + hicolor)
         └── src/
             ├── main.rs             # загрузка настроек → логи → i18n → запуск
             ├── app.rs              # AdwApplication, APP_ID, акселераторы
@@ -229,22 +238,37 @@ RU/EN).
 ## Упаковка
 
 ```bash
+# .deb и .rpm — через nfpm (без dpkg-deb/rpmbuild и без root).
+# Бинарник nfpm скачивается один раз в target/tools (нужна сеть).
+make deb        # dist/linuxprinterg_<версия>_amd64.deb
+make rpm        # dist/linuxprinterg-<версия>-1.x86_64.rpm
+make packages   # оба пакета сразу
+
 # Flatpak (см. раздел «Ограничения Flatpak»)
 make flatpak
-
-# .deb (через cargo-deb: cargo install cargo-deb)
-make deb
-
-# RPM (через cargo-rpm; есть packaging/linuxprinterg.spec)
-make rpm
 
 # AppImage: linuxdeploy с GTK-плагином
 linuxdeploy --appdir AppDir -e target/release/linuxprinterg \
   --plugin gtk --output appimage
 
 # Системная установка
-sudo make install          # /usr/bin/linuxprinterg + .desktop + metainfo
+sudo make install   # бинарник + .desktop + metainfo + иконки hicolor
 ```
+
+Содержимое `.deb`/`.rpm`: бинарник, `.desktop`, metainfo, иконки hicolor
+(16/24/32/48/64/128/256 + scalable SVG), лицензия. Жёсткие зависимости
+(`gtk4`/`libgtk-4-1` ≥ 4.14, `libadwaita`/`libadwaita-1-0` ≥ 1.5, `cups-client`,
+`poppler-utils`), опциональные (`sane`, `libreoffice`, `tesseract`) — через
+Recommends. Пост-установочный скрипт обновляет кэши рабочего стола и иконок.
+
+Иконку можно перегенерировать после правки SVG:
+
+```bash
+python3 scripts/render-icons.py   # требует python3-gi + librsvg2
+```
+
+Альтернативно RPM собирается из исходников на Fedora через
+`packaging/linuxprinterg.spec` (rpmbuild).
 
 ### Ограничения Flatpak
 

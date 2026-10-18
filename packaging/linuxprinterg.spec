@@ -12,9 +12,13 @@ BuildRequires:  pkgconfig(gtk4) >= 4.14
 BuildRequires:  pkgconfig(libadwaita-1) >= 1.5
 BuildRequires:  make
 
+Requires:       gtk4 >= 4.14
+Requires:       libadwaita >= 1.5
 Requires:       cups-client
 Requires:       sane-backends
 Requires:       poppler-utils
+Recommends:     libreoffice-core
+Recommends:     tesseract
 
 %description
 LinuxPrinterG is a fast, minimalistic desktop hub for printing and scanning.
@@ -36,6 +40,8 @@ in the system.
 %{_bindir}/linuxprinterg
 %{_datadir}/applications/org.linuxprinterg.LinuxPrinterG.desktop
 %{_datadir}/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+%{_datadir}/icons/hicolor/*/apps/org.linuxprinterg.LinuxPrinterG.png
+%{_datadir}/icons/hicolor/scalable/apps/org.linuxprinterg.LinuxPrinterG.svg
 
 %changelog
 * Sat Oct 17 2026 LinuxPrinterG contributors - 0.1.0-1

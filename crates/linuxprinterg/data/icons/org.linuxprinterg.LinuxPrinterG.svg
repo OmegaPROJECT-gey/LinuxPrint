@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Иконка LinuxPrinterG: принтер с бумагой сверху и листом, выходящим
+     из фронтального лотка. Стиль — плоский (hicolor, GNOME-friendly).
+     Растеризация: scripts/render-icons.py (librsvg через Rsvg-gi). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b93ec"/>
+      <stop offset="1" stop-color="#2b6cd4"/>
+    </linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b6cd4"/>
+      <stop offset="1" stop-color="#1c71d8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Лист, подаваемый сверху (нижний край скрыт корпусом) -->
+  <g>
+    <rect x="144" y="76" width="224" height="188" rx="14" fill="#ffffff"/>
+    <!-- содержимое листа: строка-заголовок и «печать» -->
+    <rect x="176" y="112" width="160" height="16" rx="8" fill="#c2d4f6"/>
+    <rect x="176" y="144" width="160" height="10" rx="5" fill="#d7e2fa"/>
+    <rect x="176" y="166" width="160" height="10" rx="5" fill="#d7e2fa"/>
+    <rect x="176" y="188" width="96" height="10" rx="5" fill="#d7e2fa"/>
+  </g>
+
+  <!-- Корпус -->
+  <rect x="56" y="196" width="400" height="176" rx="44" fill="url(#body)"/>
+  <!-- тёмная нижняя кромка корпуса -->
+  <path d="M56 300 v28 a44 44 0 0 0 44 44 h312 a44 44 0 0 0 44 -44 v-28 z" fill="url(#base)"/>
+
+  <!-- Паз подачи бумаги сверху -->
+  <rect x="152" y="212" width="208" height="22" rx="11" fill="#15336b"/>
+
+  <!-- Индикатор готовности + кнопка -->
+  <circle cx="404" cy="264" r="12" fill="#57e389"/>
+  <rect x="372" y="292" width="56" height="14" rx="7" fill="#15336b" opacity="0.45"/>
+
+  <!-- Фронтальный выходной паз -->
+  <rect x="112" y="304" width="288" height="24" rx="12" fill="#15336b"/>
+
+  <!-- Лист, выходящий из паза -->
+  <g>
+    <rect x="144" y="312" width="224" height="132" rx="14" fill="#ffffff"/>
+    <!-- напечатанное: синий блок (фото) + строки -->
+    <rect x="176" y="344" width="72" height="56" rx="8" fill="#3584e4"/>
+    <rect x="264" y="344" width="72" height="12" rx="6" fill="#c2d4f6"/>
+    <rect x="264" y="366" width="72" height="10" rx="5" fill="#d7e2fa"/>
+    <rect x="264" y="386" width="48" height="10" rx="5" fill="#d7e2fa"/>
+    <rect x="176" y="416" width="160" height="10" rx="5" fill="#d7e2fa"/>
+  </g>
+</svg>

@@ -768,6 +768,18 @@ msgstr ""
 msgid "settings.language.en"
 msgstr ""
 
+# EN: Ukrainian
+msgid "settings.language.uk"
+msgstr ""
+
+# EN: German
+msgid "settings.language.de"
+msgstr ""
+
+# EN: French
+msgid "settings.language.fr"
+msgstr ""
+
 # EN: Language will change after restarting the app
 msgid "settings.language_restart"
 msgstr ""

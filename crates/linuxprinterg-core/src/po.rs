@@ -109,7 +109,9 @@ fn unquote(raw: &str, line: usize) -> Result<String> {
     Err(Error::msg(format!("po:{line}: незакрытая кавычка")))
 }
 
-fn render_entries<'a>(entries: impl IntoIterator<Item = (&'a str, &'a str)>, out: &mut String) {
+/// Дописать скелет-записи (`# EN:`, `msgid`, пустой `msgstr`) в текст PO —
+/// используется при обновлении словаря (msgmerge-lite).
+pub fn render_entries<'a>(entries: impl IntoIterator<Item = (&'a str, &'a str)>, out: &mut String) {
     for (key, en) in entries {
         // Исходный английский текст — однострочным комментарием
         // (с тем же экранированием, что и в строках PO: \n, \t, \").

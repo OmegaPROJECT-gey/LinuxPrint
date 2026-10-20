@@ -38,6 +38,11 @@ contents:
       mode: 0644
   - src: crates/linuxprinterg/data/icons/hicolor
     dst: /usr/share/icons/hicolor
+  - src: locale/uk
+    dst: /usr/share/locale/uk
+    type: tree
+    file_info:
+      mode: 0644
   - src: LICENSE
     dst: /usr/share/doc/linuxprinterg/copyright
     file_info:

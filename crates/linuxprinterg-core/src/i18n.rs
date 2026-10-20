@@ -107,7 +107,8 @@ pub fn language() -> Language {
 
 /// Каталоги поиска `.mo` (первый существующий файл побеждает):
 /// переопределение для тестов/переносных запусков, каталог данных
-/// пользователя, системный каталог.
+/// пользователя, затем каталоги из `XDG_DATA_DIRS` (в Flatpak сюда
+/// входит `/app/share`) и системный каталог.
 fn locale_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Ok(dir) = std::env::var("LINUXPRINTERG_LOCALE_DIR") {
@@ -116,7 +117,19 @@ fn locale_search_dirs() -> Vec<PathBuf> {
         }
     }
     dirs.push(crate::storage::project_dirs().data_dir().join("locale"));
-    dirs.push(PathBuf::from("/usr/share/locale"));
+    let data_dirs = std::env::var("XDG_DATA_DIRS")
+        .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+    for dir in data_dirs.split(':').filter(|d| !d.is_empty()) {
+        let path = PathBuf::from(dir).join("locale");
+        if !dirs.contains(&path) {
+            dirs.push(path);
+        }
+    }
+    // Flatpak-префикс (вне песочницы добавляется безвредно).
+    let app = PathBuf::from("/app/share/locale");
+    if !dirs.contains(&app) {
+        dirs.push(app);
+    }
     dirs
 }
 
@@ -394,6 +407,9 @@ pub const ALL_KEYS: &[&str] = &[
     "settings.language.auto",
     "settings.language.ru",
     "settings.language.en",
+    "settings.language.uk",
+    "settings.language.de",
+    "settings.language.fr",
     "settings.language_restart",
     "settings.scan_dir",
     "settings.log_level",
@@ -731,6 +747,9 @@ fn entry(key: &str) -> Option<(&'static str, &'static str)> {
         "settings.language.auto" => ("Automatic", "Авто"),
         "settings.language.ru" => ("Russian", "Русский"),
         "settings.language.en" => ("English", "Английский"),
+        "settings.language.uk" => ("Ukrainian", "Украинский"),
+        "settings.language.de" => ("German", "Немецкий"),
+        "settings.language.fr" => ("French", "Французский"),
         "settings.language_restart" => (
             "Language will change after restarting the app",
             "Язык изменится после перезапуска приложения",

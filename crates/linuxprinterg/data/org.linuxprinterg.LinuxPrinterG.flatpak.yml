@@ -33,6 +33,8 @@ modules:
         /app/share/applications/org.linuxprinterg.LinuxPrinterG.desktop
       - install -Dm644 crates/linuxprinterg/data/org.linuxprinterg.LinuxPrinterG.metainfo.xml
         /app/share/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml
+      - install -Dm644 locale/uk/LC_MESSAGES/linuxprinterg.mo
+        /app/share/locale/uk/LC_MESSAGES/linuxprinterg.mo
     sources:
       - type: dir
         path: ../../..

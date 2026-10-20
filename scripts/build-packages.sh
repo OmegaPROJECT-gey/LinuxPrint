@@ -42,6 +42,13 @@ if [ ! -f crates/linuxprinterg/data/icons/hicolor/scalable/apps/org.linuxprinter
     exit 1
 fi
 
+# Переводы: собрать .mo из po/*.po (собственный писатель MO, без gettext).
+cargo run -q -p linuxprinterg-core --bin extract-po -- --build
+if [ ! -f locale/uk/LC_MESSAGES/linuxprinterg.mo ]; then
+    echo "нет locale/uk/…mo — заполните po/uk.po и выполните: make po-build" >&2
+    exit 1
+fi
+
 # nfpm: получить при необходимости.
 NFPM="$ROOT/target/tools/nfpm"
 if [ ! -x "$NFPM" ]; then

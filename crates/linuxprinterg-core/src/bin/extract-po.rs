@@ -38,7 +38,31 @@ fn extract(root: &Path) -> std::io::Result<()> {
     for lang in LANGS {
         let path = po_dir.join(format!("{lang}.po"));
         if path.exists() {
-            println!("оставлен существующий {}", path.display());
+            // msgmerge-lite: дописываем недостающие ключи словаря в конец
+            // (существующие переводы не трогаем).
+            let text = std::fs::read_to_string(&path)?;
+            let known = po::parse_po(&text).map_err(std::io::Error::other)?;
+            let missing: Vec<(&str, &str)> = entries
+                .iter()
+                .copied()
+                .filter(|(k, _)| !known.contains_key(*k))
+                .collect();
+            if missing.is_empty() {
+                println!("оставлен существующий {}", path.display());
+            } else {
+                let mut text = text;
+                if !text.ends_with('\n') {
+                    text.push('\n');
+                }
+                text.push_str("\n# --- добавлено при обновлении словаря ---\n");
+                po::render_entries(missing.iter().copied(), &mut text);
+                std::fs::write(&path, &text)?;
+                println!(
+                    "дописано {} недостающих ключей в {}",
+                    missing.len(),
+                    path.display()
+                );
+            }
         } else {
             std::fs::write(&path, po::render_po(lang, entries.iter().copied()))?;
             println!("создан скелет {} (заполните msgstr)", path.display());

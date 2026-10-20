@@ -122,6 +122,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
         i18n::tr("settings.language.auto"),
         i18n::tr("settings.language.ru"),
         i18n::tr("settings.language.en"),
+        i18n::tr("settings.language.uk"),
     ];
     let language_row = adw::ComboRow::builder()
         .title(i18n::tr("settings.language"))
@@ -302,6 +303,7 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
             let lang = match row.selected() {
                 1 => LangChoice::Ru,
                 2 => LangChoice::En,
+                3 => LangChoice::Uk,
                 _ => LangChoice::Auto,
             };
             s.ctx.settings.borrow_mut().lang = lang;
@@ -429,9 +431,10 @@ impl SettingsState {
             LangChoice::Auto => 0,
             LangChoice::Ru => 1,
             LangChoice::En => 2,
-            // uk/de/fr: позиции в списке появятся вместе с переводами
-            // (дорожная карта, п.8); пока это fallback EN.
-            LangChoice::Uk | LangChoice::De | LangChoice::Fr => 2,
+            LangChoice::Uk => 3,
+            // de/fr: позиции в списке появятся вместе с переводами
+            // (дорожная карта, п.8c); пока это fallback EN.
+            LangChoice::De | LangChoice::Fr => 2,
         });
         let level_idx = LOG_LEVELS
             .iter()

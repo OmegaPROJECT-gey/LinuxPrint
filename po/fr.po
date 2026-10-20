@@ -9,951 +9,951 @@ msgstr ""
 
 # EN: LinuxPrinterG
 msgid "app.title"
-msgstr ""
+msgstr "LinuxPrinterG"
 
 # EN: Print
 msgid "nav.print"
-msgstr ""
+msgstr "Imprimer"
 
 # EN: Scan
 msgid "nav.scan"
-msgstr ""
+msgstr "Numériser"
 
 # EN: Devices
 msgid "nav.devices"
-msgstr ""
+msgstr "Périphériques"
 
 # EN: Settings
 msgid "nav.settings"
-msgstr ""
+msgstr "Réglages"
 
 # EN: Journal
 msgid "nav.journal"
-msgstr ""
+msgstr "Journal"
 
 # EN: OK
 msgid "common.ok"
-msgstr ""
+msgstr "OK"
 
 # EN: Cancel
 msgid "common.cancel"
-msgstr ""
+msgstr "Annuler"
 
 # EN: Close
 msgid "common.close"
-msgstr ""
+msgstr "Fermer"
 
 # EN: Confirm
 msgid "common.confirm"
-msgstr ""
+msgstr "Confirmer"
 
 # EN: Refresh
 msgid "common.refresh"
-msgstr ""
+msgstr "Actualiser"
 
 # EN: Reset
 msgid "common.reset"
-msgstr ""
+msgstr "Réinitialiser"
 
 # EN: Clear
 msgid "common.clear"
-msgstr ""
+msgstr "Effacer"
 
 # EN: Export
 msgid "common.export"
-msgstr ""
+msgstr "Exporter"
 
 # EN: Save
 msgid "common.save"
-msgstr ""
+msgstr "Enregistrer"
 
 # EN: Open
 msgid "common.open"
-msgstr ""
+msgstr "Ouvrir"
 
 # EN: Select
 msgid "common.select"
-msgstr ""
+msgstr "Choisir"
 
 # EN: Browse…
 msgid "common.browse"
-msgstr ""
+msgstr "Parcourir…"
 
 # EN: Default
 msgid "common.default"
-msgstr ""
+msgstr "Par défaut"
 
 # EN: None
 msgid "common.none"
-msgstr ""
+msgstr "Aucun"
 
 # EN: Apply
 msgid "common.apply"
-msgstr ""
+msgstr "Appliquer"
 
 # EN: Error
 msgid "common.error"
-msgstr ""
+msgstr "Erreur"
 
 # EN: Warning
 msgid "common.warning"
-msgstr ""
+msgstr "Avertissement"
 
 # EN: Details
 msgid "common.details"
-msgstr ""
+msgstr "Détails"
 
 # EN: Done
 msgid "common.done"
-msgstr ""
+msgstr "Terminé"
 
 # EN: All
 msgid "common.all"
-msgstr ""
+msgstr "Tous"
 
 # EN: Automatic
 msgid "common.auto"
-msgstr ""
+msgstr "Automatique"
 
 # EN: File
 msgid "print.file"
-msgstr ""
+msgstr "Fichier"
 
 # EN: Choose file…
 msgid "print.select_file"
-msgstr ""
+msgstr "Choisir un fichier…"
 
 # EN: Drop a PDF or image here, or click «Choose file…»
 msgid "print.drop_hint"
-msgstr ""
+msgstr "Déposez un PDF ou une image ici, ou cliquez sur « Choisir un fichier… »"
 
 # EN: Printer
 msgid "print.printer"
-msgstr ""
+msgstr "Imprimante"
 
 # EN: Print
 msgid "print.print_now"
-msgstr ""
+msgstr "Imprimer"
 
 # EN: Print queue
 msgid "print.queue"
-msgstr ""
+msgstr "File d’attente d’impression"
 
 # EN: Queue is empty
 msgid "print.queue_empty"
-msgstr ""
+msgstr "La file est vide"
 
 # EN: Completed
 msgid "print.job_done"
-msgstr ""
+msgstr "Terminée"
 
 # EN: Printing
 msgid "print.job_state.processing"
-msgstr ""
+msgstr "Impression"
 
 # EN: Printing, sheet {done} of {total}
 msgid "print.job_state.processing_of"
-msgstr ""
+msgstr "Impression, feuille {done} sur {total}"
 
 # EN: On hold
 msgid "print.job_state.held"
-msgstr ""
+msgstr "En attente"
 
 # EN: Stopped
 msgid "print.job_state.stopped"
-msgstr ""
+msgstr "Arrêtée"
 
 # EN: Cancelled
 msgid "print.job_state.canceled"
-msgstr ""
+msgstr "Annulée"
 
 # EN: Failed
 msgid "print.job_state.aborted"
-msgstr ""
+msgstr "Échouée"
 
 # EN: Job {job} finished
 msgid "notify.job_finished"
-msgstr ""
+msgstr "Le travail {job} est terminé"
 
 # EN: Job {job} is no longer in the queue
 msgid "notify.job_gone"
-msgstr ""
+msgstr "Le travail {job} n’est plus dans la file"
 
 # EN: Quick profiles
 msgid "print.quick_profiles"
-msgstr ""
+msgstr "Profils rapides"
 
 # EN: Cancel job
 msgid "print.cancel_job"
-msgstr ""
+msgstr "Annuler le travail"
 
 # EN: Cancel print job «{job}»?
 msgid "print.cancel_job_confirm"
-msgstr ""
+msgstr "Annuler le travail d’impression « {job} » ?"
 
 # EN: Copies
 msgid "print.copies"
-msgstr ""
+msgstr "Exemplaires"
 
 # EN: Pages
 msgid "print.page_range"
-msgstr ""
+msgstr "Pages"
 
 # EN: e.g. 1-3,7 — empty means all
 msgid "print.page_range_hint"
-msgstr ""
+msgstr "p. ex. 1-3,7 — vide signifie toutes"
 
 # EN: Paper size
 msgid "print.media"
-msgstr ""
+msgstr "Format du papier"
 
 # EN: Paper tray
 msgid "print.tray"
-msgstr ""
+msgstr "Bac papier"
 
 # EN: Media type
 msgid "print.media_type"
-msgstr ""
+msgstr "Type de support"
 
 # EN: Fit to page
 msgid "print.scaling"
-msgstr ""
+msgstr "Ajuster à la page"
 
 # EN: Printer default
 msgid "print.scaling.default"
-msgstr ""
+msgstr "Défaut de l’imprimante"
 
 # EN: Auto
 msgid "print.scaling.auto"
-msgstr ""
+msgstr "Auto"
 
 # EN: Auto fit
 msgid "print.scaling.auto_fit"
-msgstr ""
+msgstr "Ajustement auto"
 
 # EN: Fit
 msgid "print.scaling.fit"
-msgstr ""
+msgstr "Ajuster"
 
 # EN: Fill
 msgid "print.scaling.fill"
-msgstr ""
+msgstr "Remplir"
 
 # EN: Shrink
 msgid "print.scaling.shrink"
-msgstr ""
+msgstr "Réduire"
 
 # EN: None
 msgid "print.scaling.none"
-msgstr ""
+msgstr "Aucun"
 
 # EN: Duplex
 msgid "print.sides"
-msgstr ""
+msgstr "Recto verso"
 
 # EN: Off
 msgid "print.sides.off"
-msgstr ""
+msgstr "Désactivé"
 
 # EN: Long edge
 msgid "print.sides.long"
-msgstr ""
+msgstr "Bord long"
 
 # EN: Short edge
 msgid "print.sides.short"
-msgstr ""
+msgstr "Bord court"
 
 # EN: Color mode
 msgid "print.color"
-msgstr ""
+msgstr "Mode couleur"
 
 # EN: Color
 msgid "print.color.color"
-msgstr ""
+msgstr "Couleur"
 
 # EN: Grayscale
 msgid "print.color.gray"
-msgstr ""
+msgstr "Niveaux de gris"
 
 # EN: Automatic
 msgid "print.color.auto"
-msgstr ""
+msgstr "Automatique"
 
 # EN: Quality
 msgid "print.quality"
-msgstr ""
+msgstr "Qualité"
 
 # EN: Draft
 msgid "print.quality.draft"
-msgstr ""
+msgstr "Brouillon"
 
 # EN: Normal
 msgid "print.quality.normal"
-msgstr ""
+msgstr "Normale"
 
 # EN: High
 msgid "print.quality.high"
-msgstr ""
+msgstr "Élevée"
 
 # EN: Photo
 msgid "print.quality.photo"
-msgstr ""
+msgstr "Photo"
 
 # EN: Photo profile
 msgid "print.photo_profile"
-msgstr ""
+msgstr "Profil photo"
 
 # EN: Photo profile applied
 msgid "print.photo_profile_applied"
-msgstr ""
+msgstr "Profil photo appliqué"
 
 # EN: Photo 4×6 / 10×15
 msgid "print.photo_size"
-msgstr ""
+msgstr "Photo 4×6 / 10×15"
 
 # EN: Photo size {size} selected
 msgid "print.photo_size_applied"
-msgstr ""
+msgstr "Format photo {size} sélectionné"
 
 # EN: This printer does not offer 4×6/10×15 media — photo profile applied without size change
 msgid "print.photo_size_missing"
-msgstr ""
+msgstr "Cette imprimante n’offre pas de supports 4×6/10×15 — profil photo appliqué sans changement de format"
 
 # EN: Orientation
 msgid "print.orientation"
-msgstr ""
+msgstr "Orientation"
 
 # EN: Portrait
 msgid "print.orientation.portrait"
-msgstr ""
+msgstr "Portrait"
 
 # EN: Landscape
 msgid "print.orientation.landscape"
-msgstr ""
+msgstr "Paysage"
 
 # EN: Reverse portrait
 msgid "print.orientation.reverse_portrait"
-msgstr ""
+msgstr "Portrait inversé"
 
 # EN: Reverse landscape
 msgid "print.orientation.reverse_landscape"
-msgstr ""
+msgstr "Paysage inversé"
 
 # EN: Job #{id} submitted
 msgid "print.job_submitted"
-msgstr ""
+msgstr "Travail n°{id} envoyé"
 
 # EN: No printers found
 msgid "print.no_printer"
-msgstr ""
+msgstr "Aucune imprimante trouvée"
 
 # EN: CUPS is not available. Install cups-client (lp, lpstat) and start cups.
 msgid "print.cups_missing"
-msgstr ""
+msgstr "CUPS n’est pas disponible. Installez cups-client (lp, lpstat) et démarrez le service cups."
 
 # EN: Converting document to PDF…
 msgid "print.converting"
-msgstr ""
+msgstr "Conversion du document en PDF…"
 
 # EN: Document conversion failed: {msg}
 msgid "print.convert_failed"
-msgstr ""
+msgstr "Échec de la conversion du document : {msg}"
 
 # EN: LibreOffice is not installed. Save the document as PDF and print it.
 msgid "print.convert_missing"
-msgstr ""
+msgstr "LibreOffice n’est pas installé. Enregistrez le document en PDF et imprimez-le."
 
 # EN: Converted to {path}
 msgid "print.converted"
-msgstr ""
+msgstr "Converti vers {path}"
 
 # EN: Job {job} cancelled
 msgid "print.job_cancelled"
-msgstr ""
+msgstr "Travail {job} annulé"
 
 # EN: Print at
 msgid "print.hold_label"
-msgstr ""
+msgstr "Heure d’impression"
 
 # EN: Now
 msgid "print.hold_now"
-msgstr ""
+msgstr "Maintenant"
 
 # EN: Day-time
 msgid "print.hold_day"
-msgstr ""
+msgstr "Journée"
 
 # EN: Evening
 msgid "print.hold_evening"
-msgstr ""
+msgstr "Soirée"
 
 # EN: Night
 msgid "print.hold_night"
-msgstr ""
+msgstr "Nuit"
 
 # EN: Weekend
 msgid "print.hold_weekend"
-msgstr ""
+msgstr "Week-end"
 
 # EN: Hold
 msgid "print.hold_job"
-msgstr ""
+msgstr "Reporter"
 
 # EN: Hold job {job}?
 msgid "print.hold_job_confirm"
-msgstr ""
+msgstr "Reporter le travail {job} ?"
 
 # EN: Job {job} held
 msgid "print.job_held"
-msgstr ""
+msgstr "Travail {job} reporté"
 
 # EN: Resume
 msgid "print.resume_job"
-msgstr ""
+msgstr "Reprendre"
 
 # EN: Resume printing job {job}?
 msgid "print.resume_job_confirm"
-msgstr ""
+msgstr "Reprendre l’impression du travail {job} ?"
 
 # EN: Printing of job {job} resumed
 msgid "print.job_resumed"
-msgstr ""
+msgstr "Impression du travail {job} reprise"
 
 # EN: Restart
 msgid "print.restart_job"
-msgstr ""
+msgstr "Redémarrer"
 
 # EN: Restart job {job}? It will be printed again.
 msgid "print.restart_job_confirm"
-msgstr ""
+msgstr "Redémarrer le travail {job} ? Il sera imprimé à nouveau."
 
 # EN: Job {job} restarted
 msgid "print.job_restarted"
-msgstr ""
+msgstr "Travail {job} redémarré"
 
 # EN: Title on printer
 msgid "print.title"
-msgstr ""
+msgstr "Titre sur l’imprimante"
 
 # EN: Rendering preview…
 msgid "print.loading_preview"
-msgstr ""
+msgstr "Rendu de l’aperçu…"
 
 # EN: Preview unavailable: {msg}
 msgid "print.preview_failed"
-msgstr ""
+msgstr "Aperçu indisponible : {msg}"
 
 # EN: Install poppler-utils (pdftoppm) for PDF preview.
 msgid "print.poppler_missing"
-msgstr ""
+msgstr "Installez poppler-utils (pdftoppm) pour l’aperçu PDF."
 
 # EN: Scanner
 msgid "scan.scanner"
-msgstr ""
+msgstr "Scanner"
 
 # EN: Source
 msgid "scan.source"
-msgstr ""
+msgstr "Source"
 
 # EN: Resolution, dpi
 msgid "scan.resolution"
-msgstr ""
+msgstr "Résolution, dpi"
 
 # EN: Color mode
 msgid "scan.mode"
-msgstr ""
+msgstr "Mode couleur"
 
 # EN: Color
 msgid "scan.mode.color"
-msgstr ""
+msgstr "Couleur"
 
 # EN: Grayscale
 msgid "scan.mode.gray"
-msgstr ""
+msgstr "Niveaux de gris"
 
 # EN: Lineart
 msgid "scan.mode.lineart"
-msgstr ""
+msgstr "Traits"
 
 # EN: Pages (0 = all from ADF)
 msgid "scan.pages"
-msgstr ""
+msgstr "Pages (0 = toutes depuis l’ADF)"
 
 # EN: Flatbed always scans one page per run
 msgid "scan.pages_hint"
-msgstr ""
+msgstr "Le scanner à plat numérise toujours une page par passage"
 
 # EN: Crop area, mm
 msgid "scan.crop"
-msgstr ""
+msgstr "Zone de rognage, mm"
 
 # EN: X
 msgid "scan.crop_x"
-msgstr ""
+msgstr "X"
 
 # EN: Y
 msgid "scan.crop_y"
-msgstr ""
+msgstr "Y"
 
 # EN: Width
 msgid "scan.crop_w"
-msgstr ""
+msgstr "Largeur"
 
 # EN: Height
 msgid "scan.crop_h"
-msgstr ""
+msgstr "Hauteur"
 
 # EN: Full page
 msgid "scan.crop_reset"
-msgstr ""
+msgstr "Page entière"
 
 # EN: Rotation
 msgid "scan.rotation"
-msgstr ""
+msgstr "Rotation"
 
 # EN: Format
 msgid "scan.format"
-msgstr ""
+msgstr "Format"
 
 # EN: File name template
 msgid "scan.template"
-msgstr ""
+msgstr "Modèle de nom de fichier"
 
 # EN: Fields: {base} {device} {date} {time} {page} {n} {ext}
 msgid "scan.template_hint"
-msgstr ""
+msgstr "Champs : {base} {device} {date} {time} {page} {n} {ext}"
 
 # EN: Save to
 msgid "scan.folder"
-msgstr ""
+msgstr "Enregistrer dans"
 
 # EN: OCR (Tesseract)
 msgid "scan.ocr"
-msgstr ""
+msgstr "OCR (Tesseract)"
 
 # EN: OCR language
 msgid "scan.ocr_lang"
-msgstr ""
+msgstr "Langue de l’OCR"
 
 # EN: Preview
 msgid "scan.preview_btn"
-msgstr ""
+msgstr "Aperçu"
 
 # EN: Scan and save
 msgid "scan.scan_save"
-msgstr ""
+msgstr "Numériser et enregistrer"
 
 # EN: Scanning: page {page} of {total}
 msgid "scan.scanning"
-msgstr ""
+msgstr "Numérisation : page {page} sur {total}"
 
 # EN: Saved: {path}
 msgid "scan.saved"
-msgstr ""
+msgstr "Enregistré : {path}"
 
 # EN: Cancel scan
 msgid "scan.cancel"
-msgstr ""
+msgstr "Annuler la numérisation"
 
 # EN: No scanners found
 msgid "scan.no_scanner"
-msgstr ""
+msgstr "Aucun scanner trouvé"
 
 # EN: SANE is not available. Install sane-backends (scanimage).
 msgid "scan.sane_missing"
-msgstr ""
+msgstr "SANE n’est pas disponible. Installez sane-backends (scanimage)."
 
 # EN: No pages: document feeder is empty
 msgid "scan.empty_adf"
-msgstr ""
+msgstr "Aucune page : le chargeur est vide"
 
 # EN: Scanner is busy: {msg}
 msgid "scan-device-busy"
-msgstr ""
+msgstr "Le scanner est occupé : {msg}"
 
 # EN: Scanner rejected the option: {msg}
 msgid "scan-invalid-arg"
-msgstr ""
+msgstr "Le scanner a rejeté l’option : {msg}"
 
 # EN: Manual duplex: scan one side, flip the stack and scan again.
 msgid "scan.manual_duplex_hint"
-msgstr ""
+msgstr "Recto verso manuel : numérisez un côté, retournez la pile puis numérisez à nouveau."
 
 # EN: Page {page}/{total}
 msgid "scan.page_of"
-msgstr ""
+msgstr "Page {page}/{total}"
 
 # EN: Page {page}/{total} — {percent}%
 msgid "scan.page_of_percent"
-msgstr ""
+msgstr "Page {page}/{total} — {percent}%"
 
 # EN: Page {page} — {percent}%
 msgid "scan.page_percent"
-msgstr ""
+msgstr "Page {page} — {percent}%"
 
 # EN: Preview scans at low resolution ({dpi} dpi).
 msgid "scan.preview_hint"
-msgstr ""
+msgstr "L’aperçu numérise en basse résolution ({dpi} dpi)."
 
 # EN: Printers
 msgid "devices.printers"
-msgstr ""
+msgstr "Imprimantes"
 
 # EN: Scanners
 msgid "devices.scanners"
-msgstr ""
+msgstr "Scanners"
 
 # EN: No printers. Add one via the system dialog.
 msgid "devices.empty_printers"
-msgstr ""
+msgstr "Aucune imprimante. Ajoutez-en une via la boîte de dialogue système."
 
 # EN: No scanners found by SANE.
 msgid "devices.empty_scanners"
-msgstr ""
+msgstr "Aucun scanner trouvé par SANE."
 
 # EN: Add printer…
 msgid "devices.add_printer"
-msgstr ""
+msgstr "Ajouter une imprimante…"
 
 # EN: Set as default
 msgid "devices.set_default"
-msgstr ""
+msgstr "Définir par défaut"
 
 # EN: Default
 msgid "devices.default_badge"
-msgstr ""
+msgstr "Par défaut"
 
 # EN: Properties
 msgid "devices.details"
-msgstr ""
+msgstr "Propriétés"
 
 # EN: Idle
 msgid "devices.state.idle"
-msgstr ""
+msgstr "Inactive"
 
 # EN: Printing
 msgid "devices.state.printing"
-msgstr ""
+msgstr "Impression"
 
 # EN: Disabled
 msgid "devices.state.disabled"
-msgstr ""
+msgstr "Désactivée"
 
 # EN: Unknown
 msgid "devices.state.unknown"
-msgstr ""
+msgstr "Inconnu"
 
 # EN: Device
 msgid "devices.uri"
-msgstr ""
+msgstr "Périphérique"
 
 # EN: CUPS scheduler is not running
 msgid "devices.cups_stopped"
-msgstr ""
+msgstr "Le planificateur CUPS ne fonctionne pas"
 
 # EN: Printing is unavailable: {msg}
 msgid "devices.cups_banner"
-msgstr ""
+msgstr "Impression indisponible : {msg}"
 
 # EN: Open CUPS web interface
 msgid "devices.open_cups_web"
-msgstr ""
+msgstr "Ouvrir l’interface web CUPS"
 
 # EN: Open http://localhost:631/admin in a browser to add a printer.
 msgid "devices.manual_hint"
-msgstr ""
+msgstr "Ouvrez http://localhost:631/admin dans un navigateur pour ajouter une imprimante."
 
 # EN: System dialog launched; it may ask for administrator rights.
 msgid "devices.add_printer_done"
-msgstr ""
+msgstr "Boîte de dialogue système lancée ; une demande de droits administrateur peut apparaître."
 
 # EN: Found on the network (DNS-SD)
 msgid "devices.network"
-msgstr ""
+msgstr "Trouvé sur le réseau (DNS-SD)"
 
 # EN: Mopria printers and AirScan/eSCL scanners announced via Avahi.
 msgid "devices.network_hint"
-msgstr ""
+msgstr "Imprimantes Mopria et scanners AirScan/eSCL annoncés via Avahi."
 
 # EN: No network devices found.
 msgid "devices.network_empty"
-msgstr ""
+msgstr "Aucun périphérique réseau trouvé."
 
 # EN: Avahi (avahi-browse) is not installed — network discovery is unavailable.
 msgid "devices.network_no_avahi"
-msgstr ""
+msgstr "Avahi (avahi-browse) n’est pas installé — la découverte réseau est indisponible."
 
 # EN: Printer (Mopria)
 msgid "devices.net_printer"
-msgstr ""
+msgstr "Imprimante (Mopria)"
 
 # EN: Scanner (AirScan/eSCL)
 msgid "devices.net_scanner"
-msgstr ""
+msgstr "Scanner (AirScan/eSCL)"
 
 # EN: Service
 msgid "devices.net_service"
-msgstr ""
+msgstr "Service"
 
 # EN: Host
 msgid "devices.net_host"
-msgstr ""
+msgstr "Hôte"
 
 # EN: Address
 msgid "devices.net_address"
-msgstr ""
+msgstr "Adresse"
 
 # EN: Driver ICC profiles
 msgid "devices.icc_title"
-msgstr ""
+msgstr "Profils ICC du pilote"
 
 # EN: none declared — color management is automatic
 msgid "devices.icc_none"
-msgstr ""
+msgstr "aucun déclaré — la gestion des couleurs est automatique"
 
 # EN: profiles are applied automatically by the CUPS stack
 msgid "devices.icc_auto"
-msgstr ""
+msgstr "les profils sont appliqués automatiquement par la pile CUPS"
 
 # EN: Defaults
 msgid "settings.group_defaults"
-msgstr ""
+msgstr "Par défaut"
 
 # EN: Appearance
 msgid "settings.group_appearance"
-msgstr ""
+msgstr "Apparence"
 
 # EN: System
 msgid "settings.group_system"
-msgstr ""
+msgstr "Système"
 
 # EN: Default printer
 msgid "settings.default_printer"
-msgstr ""
+msgstr "Imprimante par défaut"
 
 # EN: Default scanner
 msgid "settings.default_scanner"
-msgstr ""
+msgstr "Scanner par défaut"
 
 # EN: Theme
 msgid "settings.theme"
-msgstr ""
+msgstr "Thème"
 
 # EN: System
 msgid "settings.theme.system"
-msgstr ""
+msgstr "Système"
 
 # EN: Light
 msgid "settings.theme.light"
-msgstr ""
+msgstr "Clair"
 
 # EN: Dark
 msgid "settings.theme.dark"
-msgstr ""
+msgstr "Sombre"
 
 # EN: Language
 msgid "settings.language"
-msgstr ""
+msgstr "Langue"
 
 # EN: Automatic
 msgid "settings.language.auto"
-msgstr ""
+msgstr "Automatique"
 
 # EN: Russian
 msgid "settings.language.ru"
-msgstr ""
+msgstr "Russe"
 
 # EN: English
 msgid "settings.language.en"
-msgstr ""
+msgstr "Anglais"
 
 # EN: Language will change after restarting the app
 msgid "settings.language_restart"
-msgstr ""
+msgstr "La langue changera après le redémarrage de l’application"
 
 # EN: Scan folder
 msgid "settings.scan_dir"
-msgstr ""
+msgstr "Dossier des numérisations"
 
 # EN: Log level
 msgid "settings.log_level"
-msgstr ""
+msgstr "Niveau de journalisation"
 
 # EN: Errors only
 msgid "settings.log_level.error"
-msgstr ""
+msgstr "Erreurs uniquement"
 
 # EN: Warnings
 msgid "settings.log_level.warn"
-msgstr ""
+msgstr "Avertissements"
 
 # EN: Info
 msgid "settings.log_level.info"
-msgstr ""
+msgstr "Infos"
 
 # EN: Debug
 msgid "settings.log_level.debug"
-msgstr ""
+msgstr "Débogage"
 
 # EN: Open log folder
 msgid "settings.open_logs"
-msgstr ""
+msgstr "Ouvrir le dossier des journaux"
 
 # EN: Reset all settings
 msgid "settings.reset"
-msgstr ""
+msgstr "Réinitialiser tous les réglages"
 
 # EN: Reset all settings to defaults?
 msgid "settings.reset_confirm"
-msgstr ""
+msgstr "Réinitialiser tous les réglages aux valeurs par défaut ?"
 
 # EN: Settings saved
 msgid "settings.saved"
-msgstr ""
+msgstr "Réglages enregistrés"
 
 # EN: OCR language (tesseract)
 msgid "settings.ocr_lang"
-msgstr ""
+msgstr "Langue de l’OCR (tesseract)"
 
 # EN: No events yet
 msgid "journal.empty"
-msgstr ""
+msgstr "Aucun événement pour le moment"
 
 # EN: All categories
 msgid "journal.filter_all"
-msgstr ""
+msgstr "Toutes les catégories"
 
 # EN: No entries match the filter
 msgid "journal.filter_empty"
-msgstr ""
+msgstr "Aucune entrée ne correspond au filtre"
 
 # EN: Clear the whole journal?
 msgid "journal.clear_confirm"
-msgstr ""
+msgstr "Effacer tout le journal ?"
 
 # EN: Journal exported to {path}
 msgid "journal.export_done"
-msgstr ""
+msgstr "Journal exporté vers {path}"
 
 # EN: Info
 msgid "journal.level.info"
-msgstr ""
+msgstr "Info"
 
 # EN: Warning
 msgid "journal.level.warn"
-msgstr ""
+msgstr "Avertissement"
 
 # EN: Error
 msgid "journal.level.error"
-msgstr ""
+msgstr "Erreur"
 
 # EN: Print
 msgid "journal.category.print"
-msgstr ""
+msgstr "Impression"
 
 # EN: Scan
 msgid "journal.category.scan"
-msgstr ""
+msgstr "Numérisation"
 
 # EN: System
 msgid "journal.category.system"
-msgstr ""
+msgstr "Système"
 
 # EN: Settings
 msgid "journal.category.settings"
-msgstr ""
+msgstr "Réglages"
 
 # EN: Print job sent to {device}
 msgid "journal.entry.print_submitted"
-msgstr ""
+msgstr "Travail d’impression envoyé vers {device}"
 
 # EN: Print job {job} cancelled
 msgid "journal.entry.print_cancelled"
-msgstr ""
+msgstr "Travail d’impression {job} annulé"
 
 # EN: Scan saved to {path}
 msgid "journal.entry.scan_saved"
-msgstr ""
+msgstr "Numérisation enregistrée dans {path}"
 
 # EN: OCR saved to {path}
 msgid "journal.entry.ocr_done"
-msgstr ""
+msgstr "OCR enregistré dans {path}"
 
 # EN: Document converted to {path}
 msgid "journal.entry.convert_done"
-msgstr ""
+msgstr "Document converti vers {path}"
 
 # EN: Settings were reset
 msgid "journal.entry.settings_reset"
-msgstr ""
+msgstr "Les réglages ont été réinitialisés"
 
 # EN: «{tool}» not found. Install the corresponding package.
 msgid "err-tool-missing"
-msgstr ""
+msgstr "« {tool} » introuvable. Installez le paquet correspondant."
 
 # EN: «{tool}» failed ({code}): {message}
 msgid "err-tool-failed"
-msgstr ""
+msgstr "« {tool} » a échoué ({code}) : {message}"
 
 # EN: Timed out waiting for «{tool}» ({secs}s)
 msgid "err-timeout"
-msgstr ""
+msgstr "Délai d’attente dépassé pour « {tool} » ({secs} s)"
 
 # EN: Cancelled
 msgid "err-cancelled"
-msgstr ""
+msgstr "Annulé"
 
 # EN: {context}: {source}
 msgid "err-io"
-msgstr ""
+msgstr "{context} : {source}"
 
 # EN: Invalid input: {msg}
 msgid "err-invalid-input"
-msgstr ""
+msgstr "Entrée invalide : {msg}"
 
 # EN: Failed to parse «{tool}» output: {details}
 msgid "err-parse"
-msgstr ""
+msgstr "Impossible d’analyser la sortie de « {tool} » : {details}"
 
 # EN: No access: {msg}
 msgid "err-permission"
-msgstr ""
+msgstr "Accès refusé : {msg}"
 
 # EN: Install the cups-client package (Debian/Ubuntu: cups-client, Fedora: cups-client, Arch: cups) and make sure the cups service is running.
 msgid "help-install-cups"
-msgstr ""
+msgstr "Installez le paquet cups-client (Debian/Ubuntu : cups-client, Fedora : cups-client, Arch : cups) et vérifiez que le service cups est en marche."
 
 # EN: Install sane-backends (Debian/Ubuntu: sane-utils, Fedora: sane-backends, Arch: sane). For AirScan/eSCL scanners install the escl backend too.
 msgid "help-install-sane"
-msgstr ""
+msgstr "Installez sane-backends (Debian/Ubuntu : sane-utils, Fedora : sane-backends, Arch : sane). Pour les scanners AirScan/eSCL, installez aussi le backend escl."
 
 # EN: Install tesseract-ocr and language data (e.g. tesseract-ocr-rus).
 msgid "help-install-tesseract"
-msgstr ""
+msgstr "Installez tesseract-ocr et les données de langue (p. ex. tesseract-ocr-fra)."
 
 # EN: Install poppler-utils for PDF preview.
 msgid "help-install-poppler"
-msgstr ""
+msgstr "Installez poppler-utils pour l’aperçu PDF."
 
 # EN: Install LibreOffice for automatic DOCX/ODT conversion, or save the document as PDF.
 msgid "help-install-libreoffice"
-msgstr ""
+msgstr "Installez LibreOffice pour la conversion automatique DOCX/ODT, ou enregistrez le document en PDF."
 
 # EN: Check that your user is in the lpadmin/sane groups and has write access to the target folder.
 msgid "help-permission"
-msgstr ""
+msgstr "Vérifiez que votre utilisateur appartient aux groupes lpadmin/sane et dispose des droits d’écriture sur le dossier cible."
 
 
 # --- добавлено при обновлении словаря ---
 # EN: Ukrainian
 msgid "settings.language.uk"
-msgstr ""
+msgstr "Ukrainien"
 
 # EN: German
 msgid "settings.language.de"
-msgstr ""
+msgstr "Allemand"
 
 # EN: French
 msgid "settings.language.fr"
-msgstr ""
+msgstr "Français"
 

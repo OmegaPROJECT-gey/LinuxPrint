@@ -44,10 +44,12 @@ fi
 
 # Переводы: собрать .mo из po/*.po (собственный писатель MO, без gettext).
 cargo run -q -p linuxprinterg-core --bin extract-po -- --build
-if [ ! -f locale/uk/LC_MESSAGES/linuxprinterg.mo ]; then
-    echo "нет locale/uk/…mo — заполните po/uk.po и выполните: make po-build" >&2
-    exit 1
-fi
+for L in uk de fr; do
+    if [ ! -f "locale/$L/LC_MESSAGES/linuxprinterg.mo" ]; then
+        echo "нет locale/$L/…mo — заполните po/$L.po и выполните: make po-build" >&2
+        exit 1
+    fi
+done
 
 # nfpm: получить при необходимости.
 NFPM="$ROOT/target/tools/nfpm"

@@ -35,6 +35,10 @@ modules:
         /app/share/metainfo/org.linuxprinterg.LinuxPrinterG.metainfo.xml
       - install -Dm644 locale/uk/LC_MESSAGES/linuxprinterg.mo
         /app/share/locale/uk/LC_MESSAGES/linuxprinterg.mo
+      - install -Dm644 locale/de/LC_MESSAGES/linuxprinterg.mo
+        /app/share/locale/de/LC_MESSAGES/linuxprinterg.mo
+      - install -Dm644 locale/fr/LC_MESSAGES/linuxprinterg.mo
+        /app/share/locale/fr/LC_MESSAGES/linuxprinterg.mo
     sources:
       - type: dir
         path: ../../..

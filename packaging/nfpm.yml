@@ -43,6 +43,16 @@ contents:
     type: tree
     file_info:
       mode: 0644
+  - src: locale/de
+    dst: /usr/share/locale/de
+    type: tree
+    file_info:
+      mode: 0644
+  - src: locale/fr
+    dst: /usr/share/locale/fr
+    type: tree
+    file_info:
+      mode: 0644
   - src: LICENSE
     dst: /usr/share/doc/linuxprinterg/copyright
     file_info:

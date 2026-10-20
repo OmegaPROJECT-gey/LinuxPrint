@@ -14,6 +14,7 @@ pub mod domain;
 pub mod error;
 pub mod i18n;
 pub mod logging;
+pub mod po;
 pub mod services;
 pub mod storage;
 

@@ -26,6 +26,13 @@ test:
 test-int:
 	$(CARGO) test -p $(CORE) -- --ignored --test-threads=1
 
+# Извлечение .po из словаря и сборка .mo (gettext, дорожная карта, п.8)
+po:
+	$(CARGO) run -p $(CORE) --bin extract-po
+
+po-build:
+	$(CARGO) run -p $(CORE) --bin extract-po -- --build
+
 fmt:
 	$(CARGO) fmt --all
 

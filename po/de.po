@@ -1,0 +1,945 @@
+# Скелет перевода (заполняется msgstr).
+msgid ""
+msgstr ""
+"Project-Id-Version: linuxprinterg\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# EN: LinuxPrinterG
+msgid "app.title"
+msgstr ""
+
+# EN: Print
+msgid "nav.print"
+msgstr ""
+
+# EN: Scan
+msgid "nav.scan"
+msgstr ""
+
+# EN: Devices
+msgid "nav.devices"
+msgstr ""
+
+# EN: Settings
+msgid "nav.settings"
+msgstr ""
+
+# EN: Journal
+msgid "nav.journal"
+msgstr ""
+
+# EN: OK
+msgid "common.ok"
+msgstr ""
+
+# EN: Cancel
+msgid "common.cancel"
+msgstr ""
+
+# EN: Close
+msgid "common.close"
+msgstr ""
+
+# EN: Confirm
+msgid "common.confirm"
+msgstr ""
+
+# EN: Refresh
+msgid "common.refresh"
+msgstr ""
+
+# EN: Reset
+msgid "common.reset"
+msgstr ""
+
+# EN: Clear
+msgid "common.clear"
+msgstr ""
+
+# EN: Export
+msgid "common.export"
+msgstr ""
+
+# EN: Save
+msgid "common.save"
+msgstr ""
+
+# EN: Open
+msgid "common.open"
+msgstr ""
+
+# EN: Select
+msgid "common.select"
+msgstr ""
+
+# EN: Browse…
+msgid "common.browse"
+msgstr ""
+
+# EN: Default
+msgid "common.default"
+msgstr ""
+
+# EN: None
+msgid "common.none"
+msgstr ""
+
+# EN: Apply
+msgid "common.apply"
+msgstr ""
+
+# EN: Error
+msgid "common.error"
+msgstr ""
+
+# EN: Warning
+msgid "common.warning"
+msgstr ""
+
+# EN: Details
+msgid "common.details"
+msgstr ""
+
+# EN: Done
+msgid "common.done"
+msgstr ""
+
+# EN: All
+msgid "common.all"
+msgstr ""
+
+# EN: Automatic
+msgid "common.auto"
+msgstr ""
+
+# EN: File
+msgid "print.file"
+msgstr ""
+
+# EN: Choose file…
+msgid "print.select_file"
+msgstr ""
+
+# EN: Drop a PDF or image here, or click «Choose file…»
+msgid "print.drop_hint"
+msgstr ""
+
+# EN: Printer
+msgid "print.printer"
+msgstr ""
+
+# EN: Print
+msgid "print.print_now"
+msgstr ""
+
+# EN: Print queue
+msgid "print.queue"
+msgstr ""
+
+# EN: Queue is empty
+msgid "print.queue_empty"
+msgstr ""
+
+# EN: Completed
+msgid "print.job_done"
+msgstr ""
+
+# EN: Printing
+msgid "print.job_state.processing"
+msgstr ""
+
+# EN: Printing, sheet {done} of {total}
+msgid "print.job_state.processing_of"
+msgstr ""
+
+# EN: On hold
+msgid "print.job_state.held"
+msgstr ""
+
+# EN: Stopped
+msgid "print.job_state.stopped"
+msgstr ""
+
+# EN: Cancelled
+msgid "print.job_state.canceled"
+msgstr ""
+
+# EN: Failed
+msgid "print.job_state.aborted"
+msgstr ""
+
+# EN: Job {job} finished
+msgid "notify.job_finished"
+msgstr ""
+
+# EN: Job {job} is no longer in the queue
+msgid "notify.job_gone"
+msgstr ""
+
+# EN: Quick profiles
+msgid "print.quick_profiles"
+msgstr ""
+
+# EN: Cancel job
+msgid "print.cancel_job"
+msgstr ""
+
+# EN: Cancel print job «{job}»?
+msgid "print.cancel_job_confirm"
+msgstr ""
+
+# EN: Copies
+msgid "print.copies"
+msgstr ""
+
+# EN: Pages
+msgid "print.page_range"
+msgstr ""
+
+# EN: e.g. 1-3,7 — empty means all
+msgid "print.page_range_hint"
+msgstr ""
+
+# EN: Paper size
+msgid "print.media"
+msgstr ""
+
+# EN: Paper tray
+msgid "print.tray"
+msgstr ""
+
+# EN: Media type
+msgid "print.media_type"
+msgstr ""
+
+# EN: Fit to page
+msgid "print.scaling"
+msgstr ""
+
+# EN: Printer default
+msgid "print.scaling.default"
+msgstr ""
+
+# EN: Auto
+msgid "print.scaling.auto"
+msgstr ""
+
+# EN: Auto fit
+msgid "print.scaling.auto_fit"
+msgstr ""
+
+# EN: Fit
+msgid "print.scaling.fit"
+msgstr ""
+
+# EN: Fill
+msgid "print.scaling.fill"
+msgstr ""
+
+# EN: Shrink
+msgid "print.scaling.shrink"
+msgstr ""
+
+# EN: None
+msgid "print.scaling.none"
+msgstr ""
+
+# EN: Duplex
+msgid "print.sides"
+msgstr ""
+
+# EN: Off
+msgid "print.sides.off"
+msgstr ""
+
+# EN: Long edge
+msgid "print.sides.long"
+msgstr ""
+
+# EN: Short edge
+msgid "print.sides.short"
+msgstr ""
+
+# EN: Color mode
+msgid "print.color"
+msgstr ""
+
+# EN: Color
+msgid "print.color.color"
+msgstr ""
+
+# EN: Grayscale
+msgid "print.color.gray"
+msgstr ""
+
+# EN: Automatic
+msgid "print.color.auto"
+msgstr ""
+
+# EN: Quality
+msgid "print.quality"
+msgstr ""
+
+# EN: Draft
+msgid "print.quality.draft"
+msgstr ""
+
+# EN: Normal
+msgid "print.quality.normal"
+msgstr ""
+
+# EN: High
+msgid "print.quality.high"
+msgstr ""
+
+# EN: Photo
+msgid "print.quality.photo"
+msgstr ""
+
+# EN: Photo profile
+msgid "print.photo_profile"
+msgstr ""
+
+# EN: Photo profile applied
+msgid "print.photo_profile_applied"
+msgstr ""
+
+# EN: Photo 4×6 / 10×15
+msgid "print.photo_size"
+msgstr ""
+
+# EN: Photo size {size} selected
+msgid "print.photo_size_applied"
+msgstr ""
+
+# EN: This printer does not offer 4×6/10×15 media — photo profile applied without size change
+msgid "print.photo_size_missing"
+msgstr ""
+
+# EN: Orientation
+msgid "print.orientation"
+msgstr ""
+
+# EN: Portrait
+msgid "print.orientation.portrait"
+msgstr ""
+
+# EN: Landscape
+msgid "print.orientation.landscape"
+msgstr ""
+
+# EN: Reverse portrait
+msgid "print.orientation.reverse_portrait"
+msgstr ""
+
+# EN: Reverse landscape
+msgid "print.orientation.reverse_landscape"
+msgstr ""
+
+# EN: Job #{id} submitted
+msgid "print.job_submitted"
+msgstr ""
+
+# EN: No printers found
+msgid "print.no_printer"
+msgstr ""
+
+# EN: CUPS is not available. Install cups-client (lp, lpstat) and start cups.
+msgid "print.cups_missing"
+msgstr ""
+
+# EN: Converting document to PDF…
+msgid "print.converting"
+msgstr ""
+
+# EN: Document conversion failed: {msg}
+msgid "print.convert_failed"
+msgstr ""
+
+# EN: LibreOffice is not installed. Save the document as PDF and print it.
+msgid "print.convert_missing"
+msgstr ""
+
+# EN: Converted to {path}
+msgid "print.converted"
+msgstr ""
+
+# EN: Job {job} cancelled
+msgid "print.job_cancelled"
+msgstr ""
+
+# EN: Print at
+msgid "print.hold_label"
+msgstr ""
+
+# EN: Now
+msgid "print.hold_now"
+msgstr ""
+
+# EN: Day-time
+msgid "print.hold_day"
+msgstr ""
+
+# EN: Evening
+msgid "print.hold_evening"
+msgstr ""
+
+# EN: Night
+msgid "print.hold_night"
+msgstr ""
+
+# EN: Weekend
+msgid "print.hold_weekend"
+msgstr ""
+
+# EN: Hold
+msgid "print.hold_job"
+msgstr ""
+
+# EN: Hold job {job}?
+msgid "print.hold_job_confirm"
+msgstr ""
+
+# EN: Job {job} held
+msgid "print.job_held"
+msgstr ""
+
+# EN: Resume
+msgid "print.resume_job"
+msgstr ""
+
+# EN: Resume printing job {job}?
+msgid "print.resume_job_confirm"
+msgstr ""
+
+# EN: Printing of job {job} resumed
+msgid "print.job_resumed"
+msgstr ""
+
+# EN: Restart
+msgid "print.restart_job"
+msgstr ""
+
+# EN: Restart job {job}? It will be printed again.
+msgid "print.restart_job_confirm"
+msgstr ""
+
+# EN: Job {job} restarted
+msgid "print.job_restarted"
+msgstr ""
+
+# EN: Title on printer
+msgid "print.title"
+msgstr ""
+
+# EN: Rendering preview…
+msgid "print.loading_preview"
+msgstr ""
+
+# EN: Preview unavailable: {msg}
+msgid "print.preview_failed"
+msgstr ""
+
+# EN: Install poppler-utils (pdftoppm) for PDF preview.
+msgid "print.poppler_missing"
+msgstr ""
+
+# EN: Scanner
+msgid "scan.scanner"
+msgstr ""
+
+# EN: Source
+msgid "scan.source"
+msgstr ""
+
+# EN: Resolution, dpi
+msgid "scan.resolution"
+msgstr ""
+
+# EN: Color mode
+msgid "scan.mode"
+msgstr ""
+
+# EN: Color
+msgid "scan.mode.color"
+msgstr ""
+
+# EN: Grayscale
+msgid "scan.mode.gray"
+msgstr ""
+
+# EN: Lineart
+msgid "scan.mode.lineart"
+msgstr ""
+
+# EN: Pages (0 = all from ADF)
+msgid "scan.pages"
+msgstr ""
+
+# EN: Flatbed always scans one page per run
+msgid "scan.pages_hint"
+msgstr ""
+
+# EN: Crop area, mm
+msgid "scan.crop"
+msgstr ""
+
+# EN: X
+msgid "scan.crop_x"
+msgstr ""
+
+# EN: Y
+msgid "scan.crop_y"
+msgstr ""
+
+# EN: Width
+msgid "scan.crop_w"
+msgstr ""
+
+# EN: Height
+msgid "scan.crop_h"
+msgstr ""
+
+# EN: Full page
+msgid "scan.crop_reset"
+msgstr ""
+
+# EN: Rotation
+msgid "scan.rotation"
+msgstr ""
+
+# EN: Format
+msgid "scan.format"
+msgstr ""
+
+# EN: File name template
+msgid "scan.template"
+msgstr ""
+
+# EN: Fields: {base} {device} {date} {time} {page} {n} {ext}
+msgid "scan.template_hint"
+msgstr ""
+
+# EN: Save to
+msgid "scan.folder"
+msgstr ""
+
+# EN: OCR (Tesseract)
+msgid "scan.ocr"
+msgstr ""
+
+# EN: OCR language
+msgid "scan.ocr_lang"
+msgstr ""
+
+# EN: Preview
+msgid "scan.preview_btn"
+msgstr ""
+
+# EN: Scan and save
+msgid "scan.scan_save"
+msgstr ""
+
+# EN: Scanning: page {page} of {total}
+msgid "scan.scanning"
+msgstr ""
+
+# EN: Saved: {path}
+msgid "scan.saved"
+msgstr ""
+
+# EN: Cancel scan
+msgid "scan.cancel"
+msgstr ""
+
+# EN: No scanners found
+msgid "scan.no_scanner"
+msgstr ""
+
+# EN: SANE is not available. Install sane-backends (scanimage).
+msgid "scan.sane_missing"
+msgstr ""
+
+# EN: No pages: document feeder is empty
+msgid "scan.empty_adf"
+msgstr ""
+
+# EN: Scanner is busy: {msg}
+msgid "scan-device-busy"
+msgstr ""
+
+# EN: Scanner rejected the option: {msg}
+msgid "scan-invalid-arg"
+msgstr ""
+
+# EN: Manual duplex: scan one side, flip the stack and scan again.
+msgid "scan.manual_duplex_hint"
+msgstr ""
+
+# EN: Page {page}/{total}
+msgid "scan.page_of"
+msgstr ""
+
+# EN: Page {page}/{total} — {percent}%
+msgid "scan.page_of_percent"
+msgstr ""
+
+# EN: Page {page} — {percent}%
+msgid "scan.page_percent"
+msgstr ""
+
+# EN: Preview scans at low resolution ({dpi} dpi).
+msgid "scan.preview_hint"
+msgstr ""
+
+# EN: Printers
+msgid "devices.printers"
+msgstr ""
+
+# EN: Scanners
+msgid "devices.scanners"
+msgstr ""
+
+# EN: No printers. Add one via the system dialog.
+msgid "devices.empty_printers"
+msgstr ""
+
+# EN: No scanners found by SANE.
+msgid "devices.empty_scanners"
+msgstr ""
+
+# EN: Add printer…
+msgid "devices.add_printer"
+msgstr ""
+
+# EN: Set as default
+msgid "devices.set_default"
+msgstr ""
+
+# EN: Default
+msgid "devices.default_badge"
+msgstr ""
+
+# EN: Properties
+msgid "devices.details"
+msgstr ""
+
+# EN: Idle
+msgid "devices.state.idle"
+msgstr ""
+
+# EN: Printing
+msgid "devices.state.printing"
+msgstr ""
+
+# EN: Disabled
+msgid "devices.state.disabled"
+msgstr ""
+
+# EN: Unknown
+msgid "devices.state.unknown"
+msgstr ""
+
+# EN: Device
+msgid "devices.uri"
+msgstr ""
+
+# EN: CUPS scheduler is not running
+msgid "devices.cups_stopped"
+msgstr ""
+
+# EN: Printing is unavailable: {msg}
+msgid "devices.cups_banner"
+msgstr ""
+
+# EN: Open CUPS web interface
+msgid "devices.open_cups_web"
+msgstr ""
+
+# EN: Open http://localhost:631/admin in a browser to add a printer.
+msgid "devices.manual_hint"
+msgstr ""
+
+# EN: System dialog launched; it may ask for administrator rights.
+msgid "devices.add_printer_done"
+msgstr ""
+
+# EN: Found on the network (DNS-SD)
+msgid "devices.network"
+msgstr ""
+
+# EN: Mopria printers and AirScan/eSCL scanners announced via Avahi.
+msgid "devices.network_hint"
+msgstr ""
+
+# EN: No network devices found.
+msgid "devices.network_empty"
+msgstr ""
+
+# EN: Avahi (avahi-browse) is not installed — network discovery is unavailable.
+msgid "devices.network_no_avahi"
+msgstr ""
+
+# EN: Printer (Mopria)
+msgid "devices.net_printer"
+msgstr ""
+
+# EN: Scanner (AirScan/eSCL)
+msgid "devices.net_scanner"
+msgstr ""
+
+# EN: Service
+msgid "devices.net_service"
+msgstr ""
+
+# EN: Host
+msgid "devices.net_host"
+msgstr ""
+
+# EN: Address
+msgid "devices.net_address"
+msgstr ""
+
+# EN: Driver ICC profiles
+msgid "devices.icc_title"
+msgstr ""
+
+# EN: none declared — color management is automatic
+msgid "devices.icc_none"
+msgstr ""
+
+# EN: profiles are applied automatically by the CUPS stack
+msgid "devices.icc_auto"
+msgstr ""
+
+# EN: Defaults
+msgid "settings.group_defaults"
+msgstr ""
+
+# EN: Appearance
+msgid "settings.group_appearance"
+msgstr ""
+
+# EN: System
+msgid "settings.group_system"
+msgstr ""
+
+# EN: Default printer
+msgid "settings.default_printer"
+msgstr ""
+
+# EN: Default scanner
+msgid "settings.default_scanner"
+msgstr ""
+
+# EN: Theme
+msgid "settings.theme"
+msgstr ""
+
+# EN: System
+msgid "settings.theme.system"
+msgstr ""
+
+# EN: Light
+msgid "settings.theme.light"
+msgstr ""
+
+# EN: Dark
+msgid "settings.theme.dark"
+msgstr ""
+
+# EN: Language
+msgid "settings.language"
+msgstr ""
+
+# EN: Automatic
+msgid "settings.language.auto"
+msgstr ""
+
+# EN: Russian
+msgid "settings.language.ru"
+msgstr ""
+
+# EN: English
+msgid "settings.language.en"
+msgstr ""
+
+# EN: Language will change after restarting the app
+msgid "settings.language_restart"
+msgstr ""
+
+# EN: Scan folder
+msgid "settings.scan_dir"
+msgstr ""
+
+# EN: Log level
+msgid "settings.log_level"
+msgstr ""
+
+# EN: Errors only
+msgid "settings.log_level.error"
+msgstr ""
+
+# EN: Warnings
+msgid "settings.log_level.warn"
+msgstr ""
+
+# EN: Info
+msgid "settings.log_level.info"
+msgstr ""
+
+# EN: Debug
+msgid "settings.log_level.debug"
+msgstr ""
+
+# EN: Open log folder
+msgid "settings.open_logs"
+msgstr ""
+
+# EN: Reset all settings
+msgid "settings.reset"
+msgstr ""
+
+# EN: Reset all settings to defaults?
+msgid "settings.reset_confirm"
+msgstr ""
+
+# EN: Settings saved
+msgid "settings.saved"
+msgstr ""
+
+# EN: OCR language (tesseract)
+msgid "settings.ocr_lang"
+msgstr ""
+
+# EN: No events yet
+msgid "journal.empty"
+msgstr ""
+
+# EN: All categories
+msgid "journal.filter_all"
+msgstr ""
+
+# EN: No entries match the filter
+msgid "journal.filter_empty"
+msgstr ""
+
+# EN: Clear the whole journal?
+msgid "journal.clear_confirm"
+msgstr ""
+
+# EN: Journal exported to {path}
+msgid "journal.export_done"
+msgstr ""
+
+# EN: Info
+msgid "journal.level.info"
+msgstr ""
+
+# EN: Warning
+msgid "journal.level.warn"
+msgstr ""
+
+# EN: Error
+msgid "journal.level.error"
+msgstr ""
+
+# EN: Print
+msgid "journal.category.print"
+msgstr ""
+
+# EN: Scan
+msgid "journal.category.scan"
+msgstr ""
+
+# EN: System
+msgid "journal.category.system"
+msgstr ""
+
+# EN: Settings
+msgid "journal.category.settings"
+msgstr ""
+
+# EN: Print job sent to {device}
+msgid "journal.entry.print_submitted"
+msgstr ""
+
+# EN: Print job {job} cancelled
+msgid "journal.entry.print_cancelled"
+msgstr ""
+
+# EN: Scan saved to {path}
+msgid "journal.entry.scan_saved"
+msgstr ""
+
+# EN: OCR saved to {path}
+msgid "journal.entry.ocr_done"
+msgstr ""
+
+# EN: Document converted to {path}
+msgid "journal.entry.convert_done"
+msgstr ""
+
+# EN: Settings were reset
+msgid "journal.entry.settings_reset"
+msgstr ""
+
+# EN: «{tool}» not found. Install the corresponding package.
+msgid "err-tool-missing"
+msgstr ""
+
+# EN: «{tool}» failed ({code}): {message}
+msgid "err-tool-failed"
+msgstr ""
+
+# EN: Timed out waiting for «{tool}» ({secs}s)
+msgid "err-timeout"
+msgstr ""
+
+# EN: Cancelled
+msgid "err-cancelled"
+msgstr ""
+
+# EN: {context}: {source}
+msgid "err-io"
+msgstr ""
+
+# EN: Invalid input: {msg}
+msgid "err-invalid-input"
+msgstr ""
+
+# EN: Failed to parse «{tool}» output: {details}
+msgid "err-parse"
+msgstr ""
+
+# EN: No access: {msg}
+msgid "err-permission"
+msgstr ""
+
+# EN: Install the cups-client package (Debian/Ubuntu: cups-client, Fedora: cups-client, Arch: cups) and make sure the cups service is running.
+msgid "help-install-cups"
+msgstr ""
+
+# EN: Install sane-backends (Debian/Ubuntu: sane-utils, Fedora: sane-backends, Arch: sane). For AirScan/eSCL scanners install the escl backend too.
+msgid "help-install-sane"
+msgstr ""
+
+# EN: Install tesseract-ocr and language data (e.g. tesseract-ocr-rus).
+msgid "help-install-tesseract"
+msgstr ""
+
+# EN: Install poppler-utils for PDF preview.
+msgid "help-install-poppler"
+msgstr ""
+
+# EN: Install LibreOffice for automatic DOCX/ODT conversion, or save the document as PDF.
+msgid "help-install-libreoffice"
+msgstr ""
+
+# EN: Check that your user is in the lpadmin/sane groups and has write access to the target folder.
+msgid "help-permission"
+msgstr ""
+

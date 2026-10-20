@@ -1,6 +1,8 @@
-//! Локализация (RU/EN).
+//! Локализация (RU/EN + gettext-переводы uk/de/fr).
 //!
-//! Решение: компилируемый словарь вместо gettext.
+//! Решение: компилируемый словарь как основа + стандартный gettext
+//! (`.po`/`.mo`) как overlay для дополнительных языков — без системного
+//! gettext ни на сборке, ни в рантайме (см. [`crate::po`]).
 //!
 //! **Обоснование.** Обёртка `gettext-rs` требует системной gettext на этапе
 //! сборки и добавляет FFI-слой в core, который иначе полностью чистый (Rust)
@@ -10,10 +12,17 @@
 //! * даёт отсутствие аллокаций на уровне строк-литералов и полный контроль
 //!   над ключами (тест гарантирует наличие обеих локалей).
 //!
-//! Формат пар («английский», «русский») совместим с процессом gettext:
-//! ключи — pseudo-идентификаторы, значения можно выгрузить в `.po` позже
-//! без изменения кода UI.
+//! **gettext-слой (дорожная карта, п.8).** RU/EN всегда из словаря
+//! (источник истины). Языки `uk`/`de`/`fr` идут через `.mo`: бинарник
+//! `extract-po` извлекает POT/скелеты `.po` и собирает `.mo` своим
+//! писателем (без `msgfmt`), а `set_language` загружает `.mo` как
+//! overlay: ключ из перевода → иначе английский текст словаря. Ключи в
+//! `.mo` — pseudo-идентификаторы словаря (`msgid` = ключ), поэтому поиск
+//! однозначен; пустые `msgstr` отбрасываются при загрузке.
 
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// Язык интерфейса.
@@ -21,37 +30,154 @@ use std::sync::atomic::{AtomicU8, Ordering};
 pub enum Language {
     En,
     Ru,
+    /// Украинский — через gettext (`.mo`, overlay поверх словаря).
+    Uk,
+    /// Немецкий — через gettext.
+    De,
+    /// Французский — через gettext.
+    Fr,
+}
+
+impl Language {
+    /// Код языка, идущего через gettext (`<base>/<ll>/LC_MESSAGES/…`).
+    /// RU/EN не грузятся — они лежат в словаре.
+    pub fn gettext_code(self) -> Option<&'static str> {
+        match self {
+            Language::En | Language::Ru => None,
+            Language::Uk => Some("uk"),
+            Language::De => Some("de"),
+            Language::Fr => Some("fr"),
+        }
+    }
+
+    fn to_code(self) -> u8 {
+        match self {
+            Language::En => 0,
+            Language::Ru => 1,
+            Language::Uk => 2,
+            Language::De => 3,
+            Language::Fr => 4,
+        }
+    }
+
+    fn from_code(code: u8) -> Language {
+        match code {
+            1 => Language::Ru,
+            2 => Language::Uk,
+            3 => Language::De,
+            4 => Language::Fr,
+            _ => Language::En,
+        }
+    }
 }
 
 static CURRENT: AtomicU8 = AtomicU8::new(0);
 
+/// Загруженный overlay: язык + пары ключ → перевод из `.mo`.
+struct Overlay {
+    code: u8,
+    map: HashMap<String, String>,
+}
+
+static OVERLAY: RwLock<Option<Overlay>> = RwLock::new(None);
+
 /// Установить текущий язык (потокобезопасно, меняется из UI).
+///
+/// Для языков uk/de/fr дополнительно (пере)загружается overlay из `.mo`:
+/// первый найденный файл в каталогах поиска побеждает; если перевода
+/// нет, остаётся английский текст словаря.
 pub fn set_language(lang: Language) {
-    CURRENT.store(
-        match lang {
-            Language::En => 0,
-            Language::Ru => 1,
-        },
-        Ordering::SeqCst,
-    );
+    CURRENT.store(lang.to_code(), Ordering::SeqCst);
+    let overlay = lang.gettext_code().map(|code| {
+        let map = locale_search_dirs()
+            .iter()
+            .find_map(|dir| load_translation(dir, code))
+            .unwrap_or_default();
+        Overlay {
+            code: lang.to_code(),
+            map,
+        }
+    });
+    *OVERLAY.write().unwrap_or_else(|e| e.into_inner()) = overlay;
 }
 
 pub fn language() -> Language {
-    match CURRENT.load(Ordering::SeqCst) {
-        1 => Language::Ru,
-        _ => Language::En,
+    Language::from_code(CURRENT.load(Ordering::SeqCst))
+}
+
+/// Каталоги поиска `.mo` (первый существующий файл побеждает):
+/// переопределение для тестов/переносных запусков, каталог данных
+/// пользователя, системный каталог.
+fn locale_search_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(dir) = std::env::var("LINUXPRINTERG_LOCALE_DIR") {
+        if !dir.trim().is_empty() {
+            dirs.push(PathBuf::from(dir));
+        }
     }
+    dirs.push(crate::storage::project_dirs().data_dir().join("locale"));
+    dirs.push(PathBuf::from("/usr/share/locale"));
+    dirs
+}
+
+/// Загрузить `<base>/<code>/LC_MESSAGES/linuxprinterg.mo`.
+///
+/// Пустые переводы отбрасываются (пустой `msgstr` не должен затирать
+/// словарь). Битый файл — предупреждение в логе и `None` (поиск
+/// продолжится по следующему каталогу).
+fn load_translation(base: &Path, code: &str) -> Option<HashMap<String, String>> {
+    let path = base.join(code).join("LC_MESSAGES").join("linuxprinterg.mo");
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::trace!("перевод не найден ({}): {e}", path.display());
+            return None;
+        }
+    };
+    match crate::po::parse_mo(&bytes) {
+        Ok(map) => {
+            let map: HashMap<String, String> =
+                map.into_iter().filter(|(_, v)| !v.is_empty()).collect();
+            tracing::debug!("загружен перевод {} ({} строк)", path.display(), map.len());
+            Some(map)
+        }
+        Err(e) => {
+            tracing::warn!("не удалось разобрать {}: {e}", path.display());
+            None
+        }
+    }
+}
+
+/// Перевод из загруженного overlay для языка (None — нет overlay,
+/// язык не совпадает или ключ не переведён).
+fn overlay_lookup(lang: Language, key: &str) -> Option<String> {
+    let guard = OVERLAY.read().unwrap_or_else(|e| e.into_inner());
+    let ov = guard.as_ref()?;
+    if ov.code != lang.to_code() {
+        return None;
+    }
+    ov.map.get(key).cloned()
 }
 
 /// Перевод по ключу. Неизвестный ключ возвращается как есть (виден в UI —
 /// сигнализирует о пропущенном переводе, а не ломает приложение).
 pub fn tr(key: &str) -> String {
     match entry(key) {
-        Some((en, ru)) => match language() {
-            Language::En => en,
-            Language::Ru => ru,
+        Some((en, ru)) => {
+            let lang = language();
+            if lang.gettext_code().is_some() {
+                // uk/de/fr: overlay из .mo, затем английский словарь.
+                if let Some(text) = overlay_lookup(lang, key) {
+                    return text;
+                }
+                return en.to_string();
+            }
+            match lang {
+                Language::Ru => ru,
+                _ => en,
+            }
+            .to_string()
         }
-        .to_string(),
         None => {
             tracing::trace!("отсутствует перевод ключа: {key}");
             key.to_string()
@@ -66,6 +192,14 @@ pub fn trf(key: &str, args: &[(&str, &str)]) -> String {
         text = text.replace(&format!("{{{name}}}"), value);
     }
     text
+}
+
+/// Полный словарь (ключ, EN, RU) — источник для извлечения POT/`.po`
+/// (бинарник `extract-po`).
+pub fn catalog() -> impl Iterator<Item = (&'static str, &'static str, &'static str)> {
+    ALL_KEYS
+        .iter()
+        .filter_map(|&k| entry(k).map(|(en, ru)| (k, en, ru)))
 }
 
 /// Все ключи словаря (для теста полноты).
@@ -737,5 +871,55 @@ mod tests {
         );
         // Неизвестный ключ возвращается как есть.
         assert_eq!(tr("nope.nope"), "nope.nope");
+    }
+
+    #[test]
+    fn catalog_covers_dictionary() {
+        let items: Vec<_> = catalog().collect();
+        assert_eq!(items.len(), ALL_KEYS.len());
+        let &(_, en, ru) = items
+            .iter()
+            .find(|(k, _, _)| *k == "nav.print")
+            .expect("nav.print в каталоге");
+        assert_eq!((en, ru), ("Print", "Печать"));
+    }
+
+    #[test]
+    fn gettext_overlay_loads_mo_and_falls_back() {
+        // Временный каталог поиска с настоящим .mo (собран своим
+        // писателем — цепочка extract-po → set_language без msgfmt).
+        let base =
+            std::env::temp_dir().join(format!("linuxprinterg-i18n-test-{}", std::process::id()));
+        let dir = base.join("uk").join("LC_MESSAGES");
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut src = HashMap::new();
+        src.insert("nav.print".to_string(), "Друк".to_string());
+        src.insert("empty.key".to_string(), String::new());
+        std::fs::write(dir.join("linuxprinterg.mo"), crate::po::write_mo(&src)).unwrap();
+
+        let map = load_translation(&base, "uk").expect("mo должен загрузиться");
+        assert_eq!(map.get("nav.print").map(String::as_str), Some("Друк"));
+        assert!(
+            !map.contains_key("empty.key"),
+            "пустые msgstr отфильтровываются"
+        );
+        assert!(load_translation(&base, "de").is_none(), "нет файла — None");
+
+        *OVERLAY.write().unwrap() = Some(Overlay {
+            code: Language::Uk.to_code(),
+            map,
+        });
+        assert_eq!(
+            overlay_lookup(Language::Uk, "nav.print").as_deref(),
+            Some("Друк")
+        );
+        assert_eq!(overlay_lookup(Language::Uk, "nope"), None);
+        assert_eq!(
+            overlay_lookup(Language::Ru, "nav.print"),
+            None,
+            "overlay чужого языка не применяется"
+        );
+        *OVERLAY.write().unwrap() = None;
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

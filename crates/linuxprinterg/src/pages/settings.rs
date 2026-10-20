@@ -429,6 +429,9 @@ impl SettingsState {
             LangChoice::Auto => 0,
             LangChoice::Ru => 1,
             LangChoice::En => 2,
+            // uk/de/fr: позиции в списке появятся вместе с переводами
+            // (дорожная карта, п.8); пока это fallback EN.
+            LangChoice::Uk | LangChoice::De | LangChoice::Fr => 2,
         });
         let level_idx = LOG_LEVELS
             .iter()

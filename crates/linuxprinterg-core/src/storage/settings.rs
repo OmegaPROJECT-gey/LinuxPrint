@@ -20,6 +20,9 @@ pub enum Theme {
 }
 
 /// Выбор языка интерфейса.
+///
+/// `Uk`/`De`/`Fr` идут через gettext: рантайм подхватывает `.mo`
+/// (см. [`crate::i18n::set_language`]); пока перевода нет — английский.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LangChoice {
@@ -27,6 +30,9 @@ pub enum LangChoice {
     Auto,
     Ru,
     En,
+    Uk,
+    De,
+    Fr,
 }
 
 impl LangChoice {
@@ -35,20 +41,34 @@ impl LangChoice {
         match self {
             LangChoice::Ru => Language::Ru,
             LangChoice::En => Language::En,
+            LangChoice::Uk => Language::Uk,
+            LangChoice::De => Language::De,
+            LangChoice::Fr => Language::Fr,
             LangChoice::Auto => {
                 let raw = std::env::var("LC_ALL")
                     .or_else(|_| std::env::var("LC_MESSAGES"))
                     .or_else(|_| std::env::var("LANG"))
                     .unwrap_or_default();
-                let raw = raw.to_ascii_lowercase();
-                if raw.starts_with("ru") {
-                    Language::Ru
-                } else {
-                    Language::En
-                }
+                detect_language(&raw)
             }
         }
     }
+}
+
+/// Определить язык по строке окружения (LC_ALL / LC_MESSAGES / LANG).
+fn detect_language(raw: &str) -> Language {
+    let raw = raw.to_ascii_lowercase();
+    for (prefix, lang) in [
+        ("ru", Language::Ru),
+        ("uk", Language::Uk),
+        ("de", Language::De),
+        ("fr", Language::Fr),
+    ] {
+        if raw.starts_with(prefix) {
+            return lang;
+        }
+    }
+    Language::En
 }
 
 /// Параметры печати по умолчанию.

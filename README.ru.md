@@ -215,7 +215,7 @@ linuxprinterg/
 | OCR (опц.) | `tesseract-ocr`, `tesseract-ocr-rus` | `tesseract`, `tesseract-langpack-rus` | `tesseract`, `tesseract-data-rus` |
 | DOCX→PDF (опц.) | `libreoffice` | `libreoffice*` | `libreoffice-still` |
 
-Для сборки UI: `libgtk-4-dev >= 4.14` и `libadwaita-0-dev >= 1.5`
+Для сборки UI: `libgtk-4-dev >= 4.14` и `libadwaita-1-dev >= 1.5`
 (Debian/Ubuntu) либо `gtk4-devel`, `libadwaita-devel` (Fedora),
 `gtk4`, `libadwaita` (Arch). Rust **1.85+** (edition 2024).
 

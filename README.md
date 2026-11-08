@@ -222,7 +222,7 @@ System packages (all target distributions):
 | OCR (optional) | `tesseract-ocr`, `tesseract-ocr-rus` | `tesseract`, `tesseract-langpack-rus` | `tesseract`, `tesseract-data-rus` |
 | DOCX→PDF (optional) | `libreoffice` | `libreoffice*` | `libreoffice-still` |
 
-To build the UI: `libgtk-4-dev >= 4.14` and `libadwaita-0-dev >= 1.5`
+To build the UI: `libgtk-4-dev >= 4.14` and `libadwaita-1-dev >= 1.5`
 (Debian/Ubuntu) or `gtk4-devel`, `libadwaita-devel` (Fedora),
 `gtk4`, `libadwaita` (Arch). Rust **1.85+** (edition 2024).
 

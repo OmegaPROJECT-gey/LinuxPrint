@@ -21,7 +21,7 @@
 
 * **Rust 1.85+** (workspace на edition 2024).
 * Для UI-крейта: dev-пакеты GTK4 ≥ 4.14 и libadwaita ≥ 1.5
-  (`libgtk-4-dev` + `libadwaita-0-dev` в Debian/Ubuntu, `gtk4-devel` +
+  (`libgtk-4-dev` + `libadwaita-1-dev` в Debian/Ubuntu, `gtk4-devel` +
   `libadwaita-devel` в Fedora, `gtk4` + `libadwaita` в Arch).
 * Утилиты, которые нужны тестам: `cups-client`, `sane-utils`, `poppler-utils`;
   опционально `tesseract-ocr` и LibreOffice.

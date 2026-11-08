@@ -21,7 +21,7 @@ project's [MIT license](LICENSE), the same as the rest of the code.
 
 * **Rust 1.85+** (workspace is on edition 2024).
 * For the UI crate: GTK4 ≥ 4.14 and libadwaita ≥ 1.5 development packages
-  (`libgtk-4-dev` + `libadwaita-0-dev` on Debian/Ubuntu, `gtk4-devel` +
+  (`libgtk-4-dev` + `libadwaita-1-dev` on Debian/Ubuntu, `gtk4-devel` +
   `libadwaita-devel` on Fedora, `gtk4` + `libadwaita` on Arch).
 * Runtime tools used by tests: `cups-client`, `sane-utils`, `poppler-utils`;
   optionally `tesseract-ocr` and LibreOffice.

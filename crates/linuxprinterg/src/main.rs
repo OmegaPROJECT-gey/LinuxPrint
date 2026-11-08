@@ -27,7 +27,9 @@ fn main() {
 
     let ctx = ctx::AppCtx::new(settings);
     let app = app::build_application(ctx);
-    app.run_with_args::<&str>(&[]);
+    // Реальные аргументы командной строки: GApplication сам разбирает их
+    // (см. HANDLES_OPEN в app.rs) — файлы уходят в primary-инстанс.
+    app.run_with_args(&std::env::args().collect::<Vec<String>>());
 
     tracing::info!("LinuxPrinterG завершает работу");
     drop(_log_guard);

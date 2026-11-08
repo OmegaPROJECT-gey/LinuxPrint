@@ -25,6 +25,12 @@ pub struct AppCtx {
     pub window: RefCell<Option<adw::ApplicationWindow>>,
     /// Метка-счётчик активных заданий в сайдбаре (строка «Печать»).
     pub sidebar_badge: RefCell<Option<gtk::Label>>,
+    /// Файл, переданный приложению при запуске (`linuxprinterg photo.jpg`,
+    /// «Открыть с помощью»), пока страница «Печать» ещё не построена.
+    pub pending_file: RefCell<Option<std::path::PathBuf>>,
+    /// Обработчик открытия файла: страница «Печать» регистрирует его при
+    /// построении (Weak-ссылкой на состояние — без циклов Rc).
+    pub open_handler: RefCell<Option<Box<dyn Fn(std::path::PathBuf)>>>,
 }
 
 pub type Ctx = Rc<AppCtx>;
@@ -40,6 +46,8 @@ impl AppCtx {
             devices_loaded: Cell::new(false),
             window: RefCell::new(None),
             sidebar_badge: RefCell::new(None),
+            pending_file: RefCell::new(None),
+            open_handler: RefCell::new(None),
         })
     }
 

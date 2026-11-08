@@ -533,6 +533,22 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         file_row.add_controller(dnd);
     }
 
+    // --- Открытие файла извне --------------------------------------------
+    // `linuxprinterg photo.jpg` и «Открыть с помощью» из файлового
+    // менеджера: обработчик регистрируется здесь, а запоздавший файл
+    // (переданный до построения страницы) забирается из pending_file.
+    {
+        let weak = Rc::downgrade(&state);
+        *ctx.open_handler.borrow_mut() = Some(Box::new(move |path| {
+            if let Some(s) = weak.upgrade() {
+                s.set_file(path);
+            }
+        }));
+    }
+    if let Some(path) = ctx.pending_file.borrow_mut().take() {
+        state.set_file(path);
+    }
+
     // --- Первоначальная загрузка ------------------------------------------
     let refresh_state = state.clone();
     let refresh = move || refresh_state.refresh();

@@ -2,9 +2,8 @@
 
 **English** | [Русский](PRINTING.ru.md)
 
-How LinuxPrinterG sends jobs to CUPS, which options it sets and what to do
-when something goes wrong. General overview: [../README.md](../README.md);
-photo-specific behaviour: [AUTO-FIT.md](AUTO-FIT.md).
+How LinuxPrinterG sends jobs to CUPS, which options it sets and what to do when it fails.
+Overview: [../README.md](../README.md); photos: [AUTO-FIT.md](AUTO-FIT.md).
 
 ## How printing works
 
@@ -12,16 +11,15 @@ Standard CUPS user utilities — no root, no `lpadmin`:
 
 * **options** — `lpoptions -p <printer> -l` fills the dropdowns with the
   printer's real choices (`PageSize`, `InputSlot`, `MediaType`, `Duplex`,
-  `print-scaling` …), and every choice is validated against them before
-  sending: an unsupported `media=…` is rejected with a message listing what
-  is actually available, instead of a failed `lp`;
+  `print-scaling` …); every choice is validated against them before sending,
+  so an unsupported `media=…` fails with a list of what is available;
 * **submission** — `lp -d <printer> -n <copies> -o key=value … -- <file>`;
-* **cancellation** — `cancel <printer>-<id>` (confirmation in the UI);
+  **cancellation** — `cancel <printer>-<id>` (confirmation in the UI);
 * **queue** — a built-in IPP client
   (`crates/linuxprinterg-core/src/services/ipp.rs`) posts HTTP
   `application/ipp` to the local cupsd (`/run/cups/cups.sock` or
   `127.0.0.1:631`, `CUPS_SERVER` overrides) for exact `job-state` values;
-  when IPP is unavailable the app falls back to `lpstat -W … -o`.
+  without IPP the app falls back to `lpstat -W … -o`.
 
 ## Accepted files
 
@@ -51,24 +49,21 @@ Standard CUPS user utilities — no root, no `lpadmin`:
 
 **Photo profile** sets quality=photo, color, one-sided printing and a photo
 media type when the printer reports one. **Photo 4×6 / 10×15** does the same
-and additionally picks the sheet by the aliases `4x6`/`10x15`/`100x150`
-(exact match → borderless → substring); if the printer has no such media, an
-honest message is shown and the size stays unchanged.
+and picks the sheet by the aliases `4x6`/`10x15`/`100x150` (exact match →
+borderless → substring); without such media the size stays unchanged.
 
 ## Delayed printing
 
-Row «Print at» (`job-hold-until`): **Now** (nothing sent) / **Day-time** /
-**Evening** / **Night** / **Weekend** → CUPS values `day-time`, `evening`,
-`night`, `weekend`. Named values are checked against the printer's real
-choices; a manual `HH:MM` time passes through untouched.
+Row «Print at» (`job-hold-until`): **Now** (nothing sent) / **Day-time** / **Evening** /
+**Night** / **Weekend** → CUPS values `day-time`, `evening`, `night`, `weekend`; named values
+are checked against the printer's real choices, a manual `HH:MM` passes through untouched.
 
 ## Queue
 
 * exact IPP statuses: «Printing» (with «sheet X of Y» from
-  `job-media-sheets-completed`/`job-media-sheets` when the printer reports
-  them), «On hold», «Stopped», «Completed», «Cancelled», «Aborted»;
-  pending jobs are shown without a status label;
-* actions: cancel (confirmation), **Hold / Release** for active jobs and
+  `job-media-sheets*` when the printer reports them), «On hold», «Stopped»,
+  «Completed», «Cancelled», «Aborted»; pending jobs have no status label;
+* actions: cancel (confirmation), **Hold / Release** for active jobs,
   **Restart** for finished ones — IPP job operations with confirmation and a
   journal entry;
 * auto-refresh every **3 s**; after **2 failures in a row** polling stops
@@ -91,12 +86,10 @@ cupsenable MyPrinter  # and enable the queue
 
 ### CUPS is stopped
 
-The app shows a banner «CUPS scheduler is not running»:
-
 ```bash
-sudo systemctl status cups
+sudo systemctl status cups   # the app shows a "not running" banner
 sudo systemctl start cups
-lpstat -r             # must answer "scheduler is running"
+lpstat -r                    # must answer "scheduler is running"
 ```
 
 ### A job ends up in an error state
@@ -107,10 +100,9 @@ lpstat -o               # jobs not completed
 sudo tail -n 100 /var/log/cups/error_log
 ```
 
-Set `LogLevel debug` in `/etc/cups/cupsd.conf` and restart cupsd for
-details — the reason (missing driver, offline device, failed filter) is
-logged there. The application's own log:
-`~/.local/state/linuxprinterg/logs/linuxprinterg.log` (daily rotation).
+Set `LogLevel debug` in `/etc/cups/cupsd.conf` and restart cupsd — the
+reason (missing driver, offline device, failed filter) is logged there. The
+app's own log: `~/.local/state/linuxprinterg/logs/linuxprinterg.log`.
 
 ### Printer not found
 
@@ -119,31 +111,27 @@ lpstat -v                    # URIs CUPS knows
 avahi-browse -rtp _ipp._tcp  # network (Mopria) printers
 ```
 
-Network printers are usually added as `ipp://host:631/printers/NAME` or
+Network printers are added as `ipp://host:631/printers/NAME` or
 `ipps://host/ipp/print` (driverless IPP Everywhere) via
-`system-config-printer` or `http://localhost:631/admin` — both request polkit
-themselves; the app never calls `lpadmin`.
+`system-config-printer` or `http://localhost:631/admin` — both request
+polkit themselves; the app never calls `lpadmin`.
 
 ### Margins and cropping
 
 * the sheet must match what the driver advertises:
   `lpoptions -p MyPrinter -l | grep -i pagesize`;
-* wide white borders are the classic "photo on A4" case → turn on
-  **Auto photo fit** ([AUTO-FIT.md](AUTO-FIT.md));
-* print margins are driver CUPS options; their list depends on the printer
-  and is not invented by the application.
+* wide white borders are the classic "photo on A4" case → turn on **Auto photo fit**
+  ([AUTO-FIT.md](AUTO-FIT.md));
+* print margins are driver CUPS options, not invented by the application.
 
 ### No driver for the printer
 
 CUPS uses the drivers installed in the system; LinuxPrinterG ships none:
 
 ```bash
-# Debian/Ubuntu
-sudo apt install cups-filters printer-driver-gutenprint hplip
-# Fedora
-sudo dnf install cups-filters gutenprint hplip
-# Arch
-sudo pacman -S cups-filters gutenprint hplip
+sudo apt install cups-filters printer-driver-gutenprint hplip  # Debian/Ubuntu
+sudo dnf install cups-filters gutenprint hplip                 # Fedora
+sudo pacman -S cups-filters gutenprint hplip                  # Arch
 ```
 
 Modern printers usually work **driverless** (IPP Everywhere / Mopria) and
@@ -156,8 +144,6 @@ lpstat -t                  # everything at once
 lpoptions -p MyPrinter -l  # supported options and choices
 lp -d MyPrinter -o media=A4 -o print-scaling=fill photo.jpg
 cancel MyPrinter-23        # cancel by job token
-cupsdisable MyPrinter      # pause printing
 ```
 
-See also: [../README.md](../README.md), [AUTO-FIT.md](AUTO-FIT.md),
-[../ARCHITECTURE.md](../ARCHITECTURE.md).
+See also: [../README.md](../README.md), [AUTO-FIT.md](AUTO-FIT.md), [../ARCHITECTURE.md](../ARCHITECTURE.md).

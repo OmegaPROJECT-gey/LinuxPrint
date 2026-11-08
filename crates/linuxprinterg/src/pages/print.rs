@@ -290,6 +290,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     // и при включении. Значения применяются к выпадающим спискам выше.
     let auto_fit = gtk::Switch::builder()
         .active(ctx.settings.borrow().print.auto_fit)
+        .halign(gtk::Align::Start)
         .valign(gtk::Align::Center)
         .tooltip_text(i18n::tr("print.auto_fit_hint"))
         .build();

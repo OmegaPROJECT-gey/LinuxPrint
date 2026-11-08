@@ -1,95 +1,85 @@
 # Architecture
 
-**How LinuxPrinterG is built: a two-crate Rust workspace in which every line of
-logic lives outside GTK and can be tested without a graphical session.**
+**How LinuxPrinterG is built: a two-crate Rust workspace where every line of
+logic lives outside GTK and is testable without a graphical session.**
 
-LinuxPrinterG does not ship drivers of its own. It drives the services that are
-already on the system — CUPS (`lp`, `lpstat`, `cancel`, `lpoptions`, plus a
-minimal IPP client over HTTP) and SANE (`scanimage`, including the `escl`
-backend for AirScan/eSCL) — and it shows honest errors when a tool is missing.
+The app ships no drivers of its own. It drives CUPS (`lp`, `lpstat`, `cancel`,
+`lpoptions`, plus a mini IPP client over HTTP) and SANE (`scanimage`,
+including the `escl` backend for AirScan/eSCL), and answers with a clear
+instruction when a tool is missing.
 
 ---
 
 ## The workspace
 
-The root `Cargo.toml` defines a workspace of two crates (resolver 2,
-edition 2024, Rust ≥ 1.85, `version` in `[workspace.package]`):
+The root `Cargo.toml` declares two crates (resolver 2, edition 2024,
+Rust ≥ 1.85, `version` in `[workspace.package]`):
 
 | Crate | Role | Links GTK |
 |---|---|---|
-| `linuxprinterg-core` | everything that is not a widget: domain types, CUPS/SANE/IPP integration, PDF/TIFF writers, file naming, settings, journal, i18n | no |
+| `linuxprinterg-core` | everything that is not a widget: domain types, CUPS/SANE/IPP integration, PDF/TIFF writers, naming, settings, journal, i18n | no |
 | `linuxprinterg` | the application: GTK4 ≥ 4.14, libadwaita ≥ 1.5, pages, window, async bridge | yes |
 
-The core never imports GTK; the UI crate never parses `lpstat` output. This
-boundary is what keeps the project testable: `cargo test --workspace` runs on a
-headless CI runner with no display server.
+The core never imports GTK; the UI crate never parses `lpstat` output. That
+boundary is why `cargo test --workspace` passes on a headless CI runner with
+no display server.
 
 ## Layers inside the core
 
-* `domain/` — plain data: `Printer`, `Scanner`, `Job`, print and scan requests,
-  `page_range.rs` (turns `1-3,7` into intervals).
-* `services/` — integration with the system, one module per external tool or
-  file format: `cups.rs` (runners + parsers for `lpstat`/`lp`/`cancel`/
-  `lpoptions`), `ipp.rs` (mini IPP client: HTTP POST `application/ipp` to the
-  local cupsd, RFC 8010 encoding written by hand), `sane.rs` (`scanimage`, ADF,
-  crop clipping), `fit.rs` (photo auto-fit), `discover.rs` (DNS-SD through
-  `avahi-browse`), `pdf.rs`/`save.rs`/`tiff.rs` (own writers), `ocr.rs`,
-  `convert.rs`, `preview.rs`, `naming.rs`, `proc.rs` (process spawning).
-* `storage/` — JSON in XDG directories with atomic writes: `settings.rs`
+* `domain/` — plain data: `Printer`, `Scanner`, `Job`, print/scan requests,
+  `page_range.rs` (`1-3,7` → intervals).
+* `services/` — one module per external tool or file format: `cups.rs`
+  (runners + parsers), `ipp.rs` (HTTP `application/ipp` to the local cupsd,
+  RFC 8010 written by hand), `sane.rs` (ADF, crop clipping), `fit.rs` (photo
+  auto-fit), `discover.rs` (DNS-SD via `avahi-browse`), `pdf.rs`/`save.rs`/
+  `tiff.rs` (own writers), `ocr.rs`, `convert.rs`, `preview.rs`, `naming.rs`,
+  `proc.rs` (process spawning).
+* `storage/` — JSON in XDG directories, atomic writes: `settings.rs`
   (serde + validation), `journal.rs` (log, CSV export, 1000-entry cap).
-* `i18n.rs` and `po.rs` — RU/EN dictionary with `tr()`/`trf()`, plus an own
+* `i18n.rs` / `po.rs` — RU/EN dictionary with `tr()`/`trf()` and an own
   PO/MO reader-writer for the uk/de/fr gettext overlay.
-* `error.rs` — the error enum carries localized messages with the "what to
-  install" instruction; `logging.rs` — `tracing` to stderr and a daily-rotated
-  file.
+* `error.rs` — errors carry localized messages plus the "what to install"
+  instruction; `logging.rs` — `tracing` to stderr and a daily-rotated file.
 
-Nothing under `core` touches widgets or the main loop.
+No widget and no main loop exists inside `core`.
 
 ## Layers inside the UI
 
-* `main.rs` — load settings → logging → i18n → start.
-* `app.rs` — `AdwApplication`, `APP_ID`, accelerators (`Ctrl+1..5`, `Ctrl+R`,
-  `Ctrl+Q`).
-* `window.rs` — `AdwOverlaySplitView` (sidebar collapses under 760 px), lazy
-  page loading, `confirm()` for destructive actions.
-* `ctx.rs` — `AppCtx`: settings, journal handle, toasts, device cache shared
-  by the pages.
-* `tasks.rs` — the bridge described below.
-* `pages/` — one file per screen: `print.rs`, `scan.rs`, `devices.rs`,
-  `settings.rs`, `journal.rs`.
+`main.rs` (settings → logging → i18n → start), `app.rs` (`AdwApplication`,
+`APP_ID`, accelerators `Ctrl+1..5`, `Ctrl+R`, `Ctrl+Q`), `window.rs`
+(`AdwOverlaySplitView`, sidebar collapses under 760 px, lazy pages,
+`confirm()` for destructive actions), `ctx.rs` (`AppCtx`: settings, journal,
+toasts, device cache shared by the pages), `tasks.rs` (the bridge below) and
+`pages/` — `print.rs`, `scan.rs`, `devices.rs`, `settings.rs`, `journal.rs`.
 
 ## Data flow
 
-1. A widget handler on a page calls `tasks::run_async(task, on_done)` or
+1. A widget handler calls `tasks::run_async(task, on_done)` or
    `tasks::run_with_progress(task, on_progress, on_done)`.
-2. `tasks.rs` spawns a `std::thread`; the closure performs the blocking core
-   call (`lpstat`, `scanimage`, an IPP request) with hard timeouts.
-3. The result comes back over `async_channel`, and
-   `glib::MainContext::spawn_local` runs `on_done`/`on_progress` on the GTK
-   main thread.
-4. `on_done` updates widgets. Nothing else may touch GTK off the main thread.
+2. `tasks.rs` spawns a `std::thread`; the closure runs the blocking core call
+   with hard timeouts.
+3. The result returns over `async_channel`;
+   `glib::MainContext::spawn_local` executes `on_done`/`on_progress` on the
+   GTK main thread.
+4. `on_done` updates widgets — nothing else may touch GTK off the main thread.
 
-Scanning, OCR and conversion use the second form: a progress channel plus a
-completion channel; the progress channel closing is itself the signal that the
-task has ended.
+Scanning, OCR and conversion use a progress channel plus a result channel;
+the progress channel closing means the task has ended.
 
 **Cancellation.** The UI keeps a `CancelHandle` — `Arc` + `Weak` on the child
-process. Pressing «Cancel» kills the child and the core returns
-`Error::Cancelled`. Timeouts do the same on their own.
+process; «Cancel» kills it and the core returns `Error::Cancelled`. Timeouts
+in `proc.rs` do the same by themselves.
 
 ## External processes — `services/proc.rs`
 
-Every external tool (`lp`, `lpstat`, `cancel`, `lpoptions`, `scanimage`,
-`tesseract`, `soffice`, `pdftoppm`, `avahi-browse`) goes through one module
-with four rules:
+`lp`, `lpstat`, `cancel`, `lpoptions`, `scanimage`, `tesseract`, `soffice`,
+`pdftoppm`, `avahi-browse` — all go through one module with four rules:
 
-* **no shell** — the program and its arguments are a `Vec`, so there is nothing
-  to inject;
-* **hard timeout** — on expiry the child is killed and `Error::Timeout` is
-  returned;
-* **cancellation** — `CancelHandle` kills the process when the UI asks;
-* **`LC_ALL=C`** — locale-independent parsing of the output, and dedicated
-  reader threads for stdout/stderr so a full pipe cannot deadlock the child.
+* **no shell** — the program and its arguments are a `Vec`: nothing to inject;
+* **hard timeout** — the child is killed and `Error::Timeout` is returned;
+* **cancellation** — `CancelHandle` kills the process on demand from the UI;
+* **`LC_ALL=C`** — locale-independent parsing, plus reader threads for
+  stdout/stderr so a full pipe cannot deadlock the child.
 
 ## Directory tree
 
@@ -167,12 +157,11 @@ linuxprinterg/
 
 ## What this buys us
 
-* core tests run headless (`make test`): parsers are checked against fixtures
-  of real tool output, the IPP client against a request captured from libcups;
-* state lives in `AppCtx`, not scattered in widget properties, so a page cannot
-  fall out of sync with the settings or the journal;
-* a feature usually touches exactly three places: a `services/` module, an
-  entry in `i18n.rs` + `ALL_KEYS` (and `po/*.po` for uk/de/fr), and a page.
+Core tests run headless against fixtures of real tool output (and the IPP
+client against a request captured from libcups); state lives in `AppCtx` and
+cannot drift from the settings or the journal; a feature usually touches three
+places — a `services/` module, `i18n.rs` + `ALL_KEYS` (plus `po/*.po` for
+uk/de/fr), and a page.
 
 ---
 

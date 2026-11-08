@@ -1,0 +1,64 @@
+name: Bug report / Сообщение об ошибке
+description: Print or scan does not work as expected (EN below, RU после)
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **English:** fill in the form; Russian speakers may write everything in Russian — the form accepts either language.
+        **По-русски:** заполните форму, язык можно использовать любой.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / Что произошло?
+      description: Expected vs actual behaviour / Ожидаемое и фактическое поведение.
+      placeholder: "I pressed Print and … / Нажал «Печать», и …"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Шаги воспроизведения
+      placeholder: |
+        1. Open page Print / Открыть страницу «Печать»
+        2. Select file … / Выбрать файл …
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution / Дистрибутив
+      placeholder: "Fedora 44 / Ubuntu 24.04 / Arch …"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LinuxPrinterG version / Версия
+      placeholder: "Help → About, or `linuxprinterg --version`"
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer / scanner / Принтер или сканер
+      placeholder: "Canon G3030 (driverless IPP), Epson L3250 …"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Логи
+      description: |
+        Settings → “Open logs folder”, or attach the output of
+        `RUST_LOG=debug linuxprinterg 2>&1 | tail -100`.
+        **Настройки → «Открыть папку логов»** либо вывод `RUST_LOG=debug`.
+      render: text
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist / Чек-лист
+      options:
+        - label: I searched existing issues / Я поискал по существующим issues
+          required: true
+        - label: CUPS and SANE are installed and working / CUPS и SANE установлены и работают
+          required: false

@@ -1,0 +1,179 @@
+# Architecture
+
+**How LinuxPrinterG is built: a two-crate Rust workspace in which every line of
+logic lives outside GTK and can be tested without a graphical session.**
+
+LinuxPrinterG does not ship drivers of its own. It drives the services that are
+already on the system — CUPS (`lp`, `lpstat`, `cancel`, `lpoptions`, plus a
+minimal IPP client over HTTP) and SANE (`scanimage`, including the `escl`
+backend for AirScan/eSCL) — and it shows honest errors when a tool is missing.
+
+---
+
+## The workspace
+
+The root `Cargo.toml` defines a workspace of two crates (resolver 2,
+edition 2024, Rust ≥ 1.85, `version` in `[workspace.package]`):
+
+| Crate | Role | Links GTK |
+|---|---|---|
+| `linuxprinterg-core` | everything that is not a widget: domain types, CUPS/SANE/IPP integration, PDF/TIFF writers, file naming, settings, journal, i18n | no |
+| `linuxprinterg` | the application: GTK4 ≥ 4.14, libadwaita ≥ 1.5, pages, window, async bridge | yes |
+
+The core never imports GTK; the UI crate never parses `lpstat` output. This
+boundary is what keeps the project testable: `cargo test --workspace` runs on a
+headless CI runner with no display server.
+
+## Layers inside the core
+
+* `domain/` — plain data: `Printer`, `Scanner`, `Job`, print and scan requests,
+  `page_range.rs` (turns `1-3,7` into intervals).
+* `services/` — integration with the system, one module per external tool or
+  file format: `cups.rs` (runners + parsers for `lpstat`/`lp`/`cancel`/
+  `lpoptions`), `ipp.rs` (mini IPP client: HTTP POST `application/ipp` to the
+  local cupsd, RFC 8010 encoding written by hand), `sane.rs` (`scanimage`, ADF,
+  crop clipping), `fit.rs` (photo auto-fit), `discover.rs` (DNS-SD through
+  `avahi-browse`), `pdf.rs`/`save.rs`/`tiff.rs` (own writers), `ocr.rs`,
+  `convert.rs`, `preview.rs`, `naming.rs`, `proc.rs` (process spawning).
+* `storage/` — JSON in XDG directories with atomic writes: `settings.rs`
+  (serde + validation), `journal.rs` (log, CSV export, 1000-entry cap).
+* `i18n.rs` and `po.rs` — RU/EN dictionary with `tr()`/`trf()`, plus an own
+  PO/MO reader-writer for the uk/de/fr gettext overlay.
+* `error.rs` — the error enum carries localized messages with the "what to
+  install" instruction; `logging.rs` — `tracing` to stderr and a daily-rotated
+  file.
+
+Nothing under `core` touches widgets or the main loop.
+
+## Layers inside the UI
+
+* `main.rs` — load settings → logging → i18n → start.
+* `app.rs` — `AdwApplication`, `APP_ID`, accelerators (`Ctrl+1..5`, `Ctrl+R`,
+  `Ctrl+Q`).
+* `window.rs` — `AdwOverlaySplitView` (sidebar collapses under 760 px), lazy
+  page loading, `confirm()` for destructive actions.
+* `ctx.rs` — `AppCtx`: settings, journal handle, toasts, device cache shared
+  by the pages.
+* `tasks.rs` — the bridge described below.
+* `pages/` — one file per screen: `print.rs`, `scan.rs`, `devices.rs`,
+  `settings.rs`, `journal.rs`.
+
+## Data flow
+
+1. A widget handler on a page calls `tasks::run_async(task, on_done)` or
+   `tasks::run_with_progress(task, on_progress, on_done)`.
+2. `tasks.rs` spawns a `std::thread`; the closure performs the blocking core
+   call (`lpstat`, `scanimage`, an IPP request) with hard timeouts.
+3. The result comes back over `async_channel`, and
+   `glib::MainContext::spawn_local` runs `on_done`/`on_progress` on the GTK
+   main thread.
+4. `on_done` updates widgets. Nothing else may touch GTK off the main thread.
+
+Scanning, OCR and conversion use the second form: a progress channel plus a
+completion channel; the progress channel closing is itself the signal that the
+task has ended.
+
+**Cancellation.** The UI keeps a `CancelHandle` — `Arc` + `Weak` on the child
+process. Pressing «Cancel» kills the child and the core returns
+`Error::Cancelled`. Timeouts do the same on their own.
+
+## External processes — `services/proc.rs`
+
+Every external tool (`lp`, `lpstat`, `cancel`, `lpoptions`, `scanimage`,
+`tesseract`, `soffice`, `pdftoppm`, `avahi-browse`) goes through one module
+with four rules:
+
+* **no shell** — the program and its arguments are a `Vec`, so there is nothing
+  to inject;
+* **hard timeout** — on expiry the child is killed and `Error::Timeout` is
+  returned;
+* **cancellation** — `CancelHandle` kills the process when the UI asks;
+* **`LC_ALL=C`** — locale-independent parsing of the output, and dedicated
+  reader threads for stdout/stderr so a full pipe cannot deadlock the child.
+
+## Directory tree
+
+```
+linuxprinterg/
+├── Cargo.toml                      # workspace (edition 2024, Rust ≥ 1.85)
+├── Makefile                        # build, tests, packaging
+├── rustfmt.toml
+├── .github/workflows/ci.yml        # fmt + clippy + test + build + deb/rpm + flatpak
+├── LICENSE                         # MIT
+├── README.md
+├── packaging/
+│   ├── nfpm.yml                    # .deb/.rpm description (nfpm)
+│   ├── postinstall.sh              # desktop/icon caches
+│   ├── preremove.sh
+│   └── linuxprinterg.spec          # alternative RPM build (rpmbuild)
+├── scripts/
+│   ├── render-icons.py             # SVG → hicolor (librsvg + cairo)
+│   ├── get-nfpm.sh                 # download nfpm into target/tools
+│   ├── build-packages.sh           # build .deb and .rpm
+│   └── setup-fedora-dev-prefix.sh  # GTK prefix for a rootless sandbox
+└── crates/
+    ├── linuxprinterg-core/         # CORE (no GTK)
+    │   ├── Cargo.toml
+    │   └── src/
+    │       ├── lib.rs
+    │       ├── error.rs            # Error + localized messages/instructions
+    │       ├── i18n.rs             # RU/EN dictionary, tr()/trf()
+    │       ├── logging.rs          # tracing: stderr + rotating file
+    │       ├── po.rs               # own PO/MO reader-writer (uk/de/fr overlay)
+    │       ├── domain/
+    │       │   ├── mod.rs          # Printer, Scanner, Job, print/scan requests
+    │       │   └── page_range.rs   # "1-3,7" → intervals (+tests)
+    │       ├── services/
+    │       │   ├── proc.rs         # safe process spawning: no shell,
+    │       │   │                    #   timeout, cancellation, LC_ALL=C
+    │       │   ├── cups.rs         # lpstat/lp/cancel/lpoptions: runners+parsers
+    │       │   ├── ipp.rs          # mini IPP client (HTTP POST to CUPS): exact
+    │       │   │                    #   job states, manual RFC8010 encoding
+    │       │   ├── sane.rs         # scanimage -L/--help/scan, ADF, crop clip
+    │       │   ├── fit.rs          # photo auto-fit: media, orientation, crop
+    │       │   ├── discover.rs     # DNS-SD via avahi-browse (Mopria, AirScan)
+    │       │   ├── pdf.rs          # multi-page PDF writer (Flate/DCT)
+    │       │   ├── save.rs         # PNG/JPEG/TIFF/WebP
+    │       │   ├── tiff.rs         # multi-page TIFF (IFD chain + Adobe Deflate)
+    │       │   ├── ocr.rs          # tesseract (language is sanitized)
+    │       │   ├── convert.rs      # soffice --headless → PDF
+    │       │   ├── preview.rs      # pdftoppm: first PDF page → PNG
+    │       │   └── naming.rs       # name templates, uniqueness, sanitization
+    │       └── storage/
+    │           ├── mod.rs          # XDG paths, atomic writes
+    │           ├── settings.rs     # Settings (serde) + validation
+    │           └── journal.rs      # JournalHandle: log, export, cap 1000
+    └── linuxprinterg/              # UI (GTK4 4.14+ / libadwaita 1.5+)
+        ├── Cargo.toml
+        ├── data/
+        │   ├── org.linuxprinterg.LinuxPrinterG.desktop
+        │   ├── org.linuxprinterg.LinuxPrinterG.metainfo.xml
+        │   ├── org.linuxprinterg.LinuxPrinterG.flatpak.yml
+        │   └── icons/              # app icon (SVG source + hicolor)
+        └── src/
+            ├── main.rs             # settings → logging → i18n → start
+            ├── app.rs              # AdwApplication, APP_ID, accelerators
+            ├── window.rs           # OverlaySplitView, lazy pages, confirm()
+            ├── ctx.rs              # AppCtx: settings, journal, toasts, device cache
+            ├── tasks.rs            # bridge "blocking task → GTK main thread"
+            └── pages/
+                ├── mod.rs
+                ├── print.rs        # print: files, DnD, preview, queue
+                ├── scan.rs         # scan: parameters, preview, PDF/OCR
+                ├── devices.rs      # printers/scanners, adding, properties
+                ├── settings.rs     # settings (PreferencesPage)
+                └── journal.rs      # journal with auto-refresh and export
+```
+
+## What this buys us
+
+* core tests run headless (`make test`): parsers are checked against fixtures
+  of real tool output, the IPP client against a request captured from libcups;
+* state lives in `AppCtx`, not scattered in widget properties, so a page cannot
+  fall out of sync with the settings or the journal;
+* a feature usually touches exactly three places: a `services/` module, an
+  entry in `i18n.rs` + `ALL_KEYS` (and `po/*.po` for uk/de/fr), and a page.
+
+---
+
+**English** | [Русский](ARCHITECTURE.ru.md)

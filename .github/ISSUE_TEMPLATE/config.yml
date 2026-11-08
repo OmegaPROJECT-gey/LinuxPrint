@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions / Вопросы
+    url: https://github.com/OmegaPROJECT-gey/LinuxPrint/discussions
+    about: Ask anything about LinuxPrinterG (EN/RU) / Задайте вопрос о проекте
+  - name: CUPS / SANE problems / Проблемы CUPS и SANE
+    url: https://github.com/OmegaPROJECT-gey/LinuxPrint/blob/main/docs/PRINTING.md
+    about: Troubleshooting guide for printing and scanning / Руководство по печати и сканированию

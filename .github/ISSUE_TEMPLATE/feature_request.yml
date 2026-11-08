@@ -1,0 +1,44 @@
+name: Feature request / Предложение функции
+description: Suggest an improvement (like Canon PRINT-style photo fit, ink levels …)
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Задача
+      description: What is inconvenient today? / Что сейчас неудобно?
+      placeholder: "Photos print with huge margins / Фото печатаются с огромными рамками"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution / Предлагаемое решение
+      description: How should it work? / Как должно работать?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / Альтернативы
+      description: Other options you considered / Другие варианты, которые рассматривали
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Раздел
+      options:
+        - Printing / Печать
+        - Scanning / Сканирование
+        - Devices / Устройства
+        - Settings & UI / Настройки и интерфейс
+        - Journal / Журнал
+        - Packaging / Упаковка и распространение
+        - Other / Другое
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution / Участие
+      options:
+        - label: I can help with testing / Могу помочь с тестированием
+        - label: I can help with code / Могу помочь с кодом

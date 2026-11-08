@@ -559,7 +559,15 @@ impl ScanState {
             return;
         }
 
-        let output_dir = self.ctx.settings.borrow().scan_dir();
+        // Каталог сканов может ещё не существовать (свежая система,
+        // первый запуск) — создаём, затем проверяем права на запись.
+        let output_dir = match self.ctx.settings.borrow().ensure_scan_dir() {
+            Ok(dir) => dir,
+            Err(e) => {
+                self.ctx.toast_error(&e);
+                return;
+            }
+        };
         if let Err(e) = Settings::check_writable_dir(&output_dir) {
             self.ctx.toast_error(&e);
             return;

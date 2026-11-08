@@ -16,7 +16,7 @@ use linuxprinterg_core::domain::{
     JobState, Orientation, PrintColorMode, PrintQuality, PrintRequest, Printer, Sides,
 };
 use linuxprinterg_core::i18n;
-use linuxprinterg_core::services::{convert, cups, ipp, naming, pdf, preview};
+use linuxprinterg_core::services::{convert, cups, fit, ipp, naming, pdf, preview};
 use linuxprinterg_core::storage::journal::Category;
 
 use crate::ctx::Ctx;
@@ -72,6 +72,15 @@ struct PrintState {
     /// хранятся сырые значения CUPS (`print-scaling`).
     scaling_dd: gtk::DropDown,
     scaling_choices: RefCell<Vec<String>>,
+    /// Автоподгон фото (аналог Canon PRINT): подбор формата под снимок,
+    /// заполнение листа с обрезкой и альбомная ориентация — переключатель.
+    auto_fit: gtk::Switch,
+    /// Реальные значения `PageSize` принтера (совпадают с пунктами `media_dd`).
+    media_choices: RefCell<Vec<String>>,
+    /// Подпись под предпросмотром: что реально напечатается.
+    fit_label: gtk::Label,
+    /// Размеры изображения из предпросмотра — вход автоподгона.
+    file_dims: Cell<Option<(u32, u32)>>,
     sides_dd: gtk::DropDown,
     color_dd: gtk::DropDown,
     quality_dd: gtk::DropDown,
@@ -131,6 +140,15 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .wrap(true)
         .css_classes(["dim-label"])
         .build();
+    // Итог автоподгона: формат, режим и обрезка — видно заранее, что
+    // именно напечатается (по образцу Canon PRINT).
+    let fit_label = gtk::Label::builder()
+        .label("")
+        .xalign(0.0)
+        .wrap(true)
+        .css_classes(["success"])
+        .visible(false)
+        .build();
     let open_btn = gtk::Button::builder()
         .label(i18n::tr("print.select_file"))
         .build();
@@ -148,6 +166,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .build();
     info_col.append(&file_name);
     info_col.append(&file_meta);
+    info_col.append(&fit_label);
     let btn_row = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
         .spacing(8)
@@ -250,6 +269,15 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         &media_type_dd,
     );
     add_grid_row(&grid, &mut row, &i18n::tr("print.scaling"), &scaling_dd);
+    // Автоподгон фото: подбор формата, заполнение листа с обрезкой,
+    // альбомная ориентация — пересчитывается при выборе файла, принтера
+    // и при включении. Значения применяются к выпадающим спискам выше.
+    let auto_fit = gtk::Switch::builder()
+        .active(true)
+        .valign(gtk::Align::Center)
+        .tooltip_text(i18n::tr("print.auto_fit_hint"))
+        .build();
+    add_grid_row(&grid, &mut row, &i18n::tr("print.auto_fit"), &auto_fit);
     add_grid_row(&grid, &mut row, &i18n::tr("print.sides"), &sides_dd);
     add_grid_row(&grid, &mut row, &i18n::tr("print.color"), &color_dd);
     add_grid_row(&grid, &mut row, &i18n::tr("print.quality"), &quality_dd);
@@ -350,6 +378,10 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         media_type_dd,
         scaling_dd,
         scaling_choices: RefCell::new(vec![String::new()]),
+        auto_fit: auto_fit.clone(),
+        media_choices: RefCell::new(Vec::new()),
+        fit_label,
+        file_dims: Cell::new(None),
         sides_dd,
         color_dd,
         quality_dd,
@@ -390,6 +422,10 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     {
         let s = state.clone();
         photo_size_btn.connect_clicked(move |_| s.apply_photo_size_preset());
+    }
+    {
+        let s = state.clone();
+        auto_fit.connect_active_notify(move |_| s.apply_auto_fit());
     }
     {
         let s = state.clone();
@@ -549,13 +585,14 @@ impl PrintState {
                     .cloned()
                     .unwrap_or_default();
 
-                if let Some(idx) = media.iter().position(|m| m == &default_media) {
-                    s.media_dd.set_selected(idx as u32);
-                } else if !media.is_empty() {
-                    s.media_dd.set_selected(0);
-                }
                 set_items(&s.media_dd, &media);
                 set_items(&s.tray_dd, &trays);
+                // Выбор — после подмены модели: set_items сбрасывает
+                // выделение, поэтому применяем настройку медиа здесь.
+                if let Some(idx) = media.iter().position(|m| m == &default_media) {
+                    s.media_dd.set_selected(idx as u32);
+                }
+                *s.media_choices.borrow_mut() = media;
                 if media_types.is_empty() {
                     set_items(&s.media_type_dd, &[i18n::tr("common.none")]);
                 } else {
@@ -581,6 +618,9 @@ impl PrintState {
                 set_items(&s.scaling_dd, &labels);
                 s.scaling_dd.set_selected(0);
                 *s.scaling_choices.borrow_mut() = choices;
+                // Опции принтера изменились — пересчитать автоподгон
+                // для уже выбранного файла (если он есть).
+                s.apply_auto_fit();
             },
         );
     }
@@ -656,6 +696,9 @@ impl PrintState {
         self.file_meta.set_label("");
         self.picture.set_paintable(None::<&gdk::Texture>);
         self.title.set_text("");
+        // Без файла автоподгон не считается — убрать итоговую подпись.
+        self.file_dims.set(None);
+        self.apply_auto_fit();
     }
 
     /// Показать предпросмотр: изображения — напрямую, PDF — через pdftoppm.
@@ -666,12 +709,20 @@ impl PrintState {
             .map(|e| e.eq_ignore_ascii_case("pdf"))
             .unwrap_or(false);
 
+        // Новый файл — прежний итог автоподгона недействителен.
+        self.file_dims.set(None);
+        self.apply_auto_fit();
+
         if !is_pdf {
             match gdk::Texture::from_filename(&path) {
                 Ok(texture) => {
+                    // Размеры снимка — вход автоподгона (формат, обрезка).
+                    self.file_dims
+                        .set(Some((texture.width() as u32, texture.height() as u32)));
                     self.picture.set_paintable(Some(&texture));
                     self.spinner.set_visible(false);
                     self.picture.set_visible(true);
+                    self.apply_auto_fit();
                 }
                 Err(e) => {
                     self.ctx.toast(&i18n::trf(
@@ -1041,6 +1092,65 @@ impl PrintState {
             }
             None => self.ctx.toast(&i18n::tr("print.photo_size_missing")),
         }
+    }
+
+    /// Автоподгон фото (аналог Canon PRINT): подобрать формат под
+    /// снимок, включить заполнение листа с обрезкой (или вписывание,
+    /// если принтер не заявляет `fill`) и альбомную ориентацию, когда
+    /// снимок шире листа. Ручные изменения после расчёта не откатываются.
+    fn apply_auto_fit(self: &Rc<Self>) {
+        if !self.auto_fit.is_active() {
+            self.fit_label.set_visible(false);
+            return;
+        }
+        let Some((w, h)) = self.file_dims.get() else {
+            self.fit_label.set_visible(false);
+            return;
+        };
+        let media = self.media_choices.borrow().clone();
+        if media.is_empty() {
+            return;
+        }
+        let fill = self.scaling_choices.borrow().iter().any(|c| c == "fill");
+        let Some(plan) = fit::plan(w, h, &media, fill, true) else {
+            self.fit_label.set_text(&i18n::tr("print.auto_fit_none"));
+            self.fit_label.set_visible(true);
+            return;
+        };
+        // Формат листа.
+        if let Some(i) = media.iter().position(|m| *m == plan.media) {
+            self.media_dd.set_selected(i as u32);
+        }
+        // Ориентация: книжная/альбомная (реверсивные не трогаем).
+        self.orientation_dd
+            .set_selected(if plan.landscape { 1 } else { 0 });
+        // Режим подгонки — только когда принтер опцию заявляет.
+        if let Some(i) = self
+            .scaling_choices
+            .borrow()
+            .iter()
+            .position(|c| *c == plan.scaling)
+        {
+            self.scaling_dd.set_selected(i as u32);
+        }
+        // Подпись: «4x6.Borderless · заполнение листа · обрезка 13 × 0 мм».
+        let mut info = plan.media.clone();
+        info.push_str(" · ");
+        info.push_str(&i18n::tr(if plan.scaling == "fill" {
+            "print.auto_fit_fill"
+        } else {
+            "print.auto_fit_fit"
+        }));
+        let (x, y) = (plan.crop_w_mm.round(), plan.crop_h_mm.round());
+        if x > 0.0 || y > 0.0 {
+            info.push_str(" · ");
+            info.push_str(&i18n::trf(
+                "print.auto_fit_crop",
+                &[("x", &format!("{x}")), ("y", &format!("{y}"))],
+            ));
+        }
+        self.fit_label.set_text(&info);
+        self.fit_label.set_visible(true);
     }
 
     fn fill_queue(self: &Rc<Self>, jobs: &[linuxprinterg_core::domain::Job]) {

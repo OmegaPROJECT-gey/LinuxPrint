@@ -6,6 +6,7 @@
 *.jpg
 !crates/linuxprinterg/data/*.png
 !crates/linuxprinterg/data/icons/**/*.png
+.~lock.*
 .flatpak-builder
 flatpak-build
 *.deb

@@ -1,5 +1,7 @@
 # LinuxPrinterG
 
+<p align="center"><img src="Icon.png" alt="LinuxPrinterG icon" width="150"></p>
+
 [Русский](README.ru.md)
 
 **A fast, minimal print and scan center for Linux.**
@@ -57,6 +59,15 @@ English.
   scaling) — the list is filled from the printer options; it is
   sent only if the printer advertises the option, otherwise "default"
   (nothing is sent);
+* **auto photo fit** (Canon PRINT-style): the paper format is picked to
+  match the aspect ratio of the photo (including `.Borderless` formats and
+  landscape orientation), the sheet is then filled with cropping (`fill`)
+  or safely fitted; a summary line appears under the preview
+  (“4x6.Borderless · fills the sheet · crop 13 × 0 mm”) and the preview
+  itself shows the crop live: dark bands over the cropped edges and a green
+  frame around the printed area; the choice is remembered between runs;
+* files open from outside: `linuxprinterg photo.jpg` and “Open With” from
+  the file manager (MIME types in the `.desktop` file, `HANDLES_OPEN`);
 
 ### Scanning
 * scanner selection (USB, network, AirScan/eSCL via the `escl` backend);

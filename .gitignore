@@ -4,6 +4,8 @@
 *.pdf
 *.png
 *.jpg
+!Icon.png
+!docs/images/*.png
 !crates/linuxprinterg/data/*.png
 !crates/linuxprinterg/data/icons/**/*.png
 .~lock.*

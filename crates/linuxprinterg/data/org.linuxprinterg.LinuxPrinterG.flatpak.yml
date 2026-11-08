@@ -10,8 +10,12 @@
 # приложение использует пользовательские lp/lpstat, что root-прав не требует.
 app-id: org.linuxprinterg.LinuxPrinterG
 runtime: org.gnome.Platform
-runtime-version: '47'
+runtime-version: '48'
 sdk: org.gnome.Sdk
+# GNOME SDK не содержит Rust — toolchain берётся из расширения SDK
+# (стандартный для Flathub способ сборки Rust-приложений).
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 command: linuxprinterg
 finish-args:
   - --share=ipc
@@ -26,6 +30,13 @@ finish-args:
 modules:
   - name: linuxprinterg
     buildsystem: simple
+    build-options:
+      # cargo/rustc из org.freedesktop.Sdk.Extension.rust-stable.
+      append-path: /usr/lib/sdk/rust-stable/bin
+      # Сборка тянет крейты с crates.io (для Flathub нужен вендоринг
+      # зависимостей — см. дорожную карта).
+      build-args:
+        - --share=network
     build-commands:
       - cargo build --release --locked
       - install -Dm755 target/release/linuxprinterg /app/bin/linuxprinterg

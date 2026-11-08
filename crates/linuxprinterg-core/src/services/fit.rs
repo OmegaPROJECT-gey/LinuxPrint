@@ -28,6 +28,11 @@ pub struct FitPlan {
     pub crop_w_mm: f64,
     /// Суммарная обрезка по высоте листа, мм (0 для `fit`).
     pub crop_h_mm: f64,
+    /// Доля ширины снимка, отрезаемая по центру (0…1) — для оверлея
+    /// предпросмотра: тёмные полосы закрывают именно эти края.
+    pub crop_frac_x: f64,
+    /// Доля высоты снимка, отрезаемая по центру (0…1).
+    pub crop_frac_y: f64,
 }
 
 /// Имя файла без признака `.Borderless` — именованные форматы.
@@ -185,15 +190,17 @@ pub fn plan(
     } else {
         (pick.dims.w_mm, pick.dims.h_mm)
     };
-    let (scaling, crop_w_mm, crop_h_mm) = if fill_supported {
+    let (scaling, crop_w_mm, crop_h_mm, crop_frac_x, crop_frac_y) = if fill_supported {
         // Коэффициент «покрытия» листа: берём больший из двух, чтобы
         // не осталось полей, — лишнее обрезается по центру.
         let k = f64::max(ew / img_w as f64, eh / img_h as f64);
         let printed_w = img_w as f64 * k;
         let printed_h = img_h as f64 * k;
-        ("fill", (printed_w - ew).max(0.0), (printed_h - eh).max(0.0))
+        let cw = (printed_w - ew).max(0.0);
+        let ch = (printed_h - eh).max(0.0);
+        ("fill", cw, ch, cw / printed_w, ch / printed_h)
     } else {
-        ("fit", 0.0, 0.0)
+        ("fit", 0.0, 0.0, 0.0, 0.0)
     };
     Some(FitPlan {
         media: pick.media,
@@ -201,6 +208,8 @@ pub fn plan(
         scaling,
         crop_w_mm,
         crop_h_mm,
+        crop_frac_x,
+        crop_frac_y,
     })
 }
 

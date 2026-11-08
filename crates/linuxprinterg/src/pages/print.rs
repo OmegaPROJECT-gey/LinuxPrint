@@ -80,7 +80,12 @@ struct PrintState {
     /// Подпись под предпросмотром: что реально напечатается.
     fit_label: gtk::Label,
     /// Размеры изображения из предпросмотра — вход автоподгона.
-    file_dims: Cell<Option<(u32, u32)>>,
+    /// `Rc<Cell>`: те же ячейки читает оверлей предпросмотра.
+    file_dims: Rc<Cell<Option<(u32, u32)>>>,
+    /// Доли обрезки по осям (0…1) — геометрия оверлея обрезки.
+    fit_crop: Rc<Cell<(f64, f64)>>,
+    /// Оверлей предпросмотра: тёмные полосы обрезки и рамка печати.
+    crop_overlay: gtk::DrawingArea,
     sides_dd: gtk::DropDown,
     color_dd: gtk::DropDown,
     quality_dd: gtk::DropDown,
@@ -114,6 +119,10 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     toolbar.add_top_bar(&header);
 
     // --- Область файла ----------------------------------------------------
+    // Общие ячейки для оверлея обрезки: их читает функция отрисовки
+    // DrawingArea и пишет apply_auto_fit.
+    let file_dims: Rc<Cell<Option<(u32, u32)>>> = Rc::new(Cell::new(None));
+    let fit_crop: Rc<Cell<(f64, f64)>> = Rc::new(Cell::new((0.0, 0.0)));
     let picture = gtk::Picture::builder()
         .content_fit(gtk::ContentFit::Contain)
         .can_shrink(true)
@@ -123,8 +132,15 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .build();
     let spinner = gtk::Spinner::new();
     spinner.set_visible(false);
+    // Оверлей предпросмотра: тёмные полосы на обрезаемых краях и рамка
+    // того, что реально уйдёт на лист (по образцу Canon PRINT).
+    let crop_overlay = gtk::DrawingArea::new();
+    crop_overlay.set_hexpand(true);
+    crop_overlay.set_vexpand(true);
+    let preview_overlay = gtk::Overlay::builder().child(&picture).build();
+    preview_overlay.add_overlay(&crop_overlay);
     let preview_stack = gtk::Stack::builder().build();
-    preview_stack.add_named(&picture, Some("picture"));
+    preview_stack.add_named(&preview_overlay, Some("picture"));
     preview_stack.add_named(&spinner, Some("spinner"));
 
     let file_name = gtk::Label::builder()
@@ -365,6 +381,62 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         .build();
     toolbar.set_content(Some(&scrolled));
 
+    // --- Оверлей обрезки --------------------------------------------------
+    // Тёмные полосы закрывают края снимка, которые не попадут на лист,
+    // зелёная рамка показывает область печати. Пересчитывается при
+    // смене файла/принтера/переключателя (см. apply_auto_fit).
+    {
+        let dims = file_dims.clone();
+        let crop = fit_crop.clone();
+        let pic = picture.clone();
+        crop_overlay.set_draw_func(move |_, cr, w, h| {
+            let (fx, fy) = crop.get();
+            if fx <= 0.0 && fy <= 0.0 || w <= 0 || h <= 0 {
+                return;
+            }
+            let Some(texture) = pic
+                .paintable()
+                .and_then(|p| p.downcast::<gdk::Texture>().ok())
+            else {
+                return;
+            };
+            let (iw, ih) = dims.get().unwrap_or((
+                texture.width().max(0) as u32,
+                texture.height().max(0) as u32,
+            ));
+            if iw == 0 || ih == 0 {
+                return;
+            }
+            // ContentFit::Contain: изображение вписывается и центрируется.
+            let scale = f64::min(w as f64 / iw as f64, h as f64 / ih as f64);
+            let dw = iw as f64 * scale;
+            let dh = ih as f64 * scale;
+            let x0 = (w as f64 - dw) / 2.0;
+            let y0 = (h as f64 - dh) / 2.0;
+            let cx = dw * fx / 2.0;
+            let cy = dh * fy / 2.0;
+            // Обрезаемые края: один путь из четырёх прямоугольников,
+            // чтобы углы не затемнялись дважды.
+            cr.new_path();
+            cr.rectangle(x0, y0, dw, cy);
+            cr.rectangle(x0, y0 + dh - cy, dw, cy);
+            cr.rectangle(x0, y0, cx, dh);
+            cr.rectangle(x0 + dw - cx, y0, cx, dh);
+            cr.set_source_rgba(0.0, 0.0, 0.0, 0.55);
+            let _ = cr.fill();
+            // Рамка того, что реально напечатается.
+            cr.set_source_rgba(0.20, 0.75, 0.40, 0.95);
+            cr.set_line_width(2.0);
+            cr.rectangle(
+                x0 + cx,
+                y0 + cy,
+                (dw - 2.0 * cx).max(1.0),
+                (dh - 2.0 * cy).max(1.0),
+            );
+            let _ = cr.stroke();
+        });
+    }
+
     let state = Rc::new(PrintState {
         ctx: ctx.clone(),
         window: window.clone(),
@@ -381,7 +453,9 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         auto_fit: auto_fit.clone(),
         media_choices: RefCell::new(Vec::new()),
         fit_label,
-        file_dims: Cell::new(None),
+        file_dims: file_dims.clone(),
+        fit_crop: fit_crop.clone(),
+        crop_overlay: crop_overlay.clone(),
         sides_dd,
         color_dd,
         quality_dd,
@@ -1106,20 +1180,24 @@ impl PrintState {
     fn apply_auto_fit(self: &Rc<Self>) {
         if !self.auto_fit.is_active() {
             self.fit_label.set_visible(false);
+            self.set_overlay((0.0, 0.0));
             return;
         }
         let Some((w, h)) = self.file_dims.get() else {
             self.fit_label.set_visible(false);
+            self.set_overlay((0.0, 0.0));
             return;
         };
         let media = self.media_choices.borrow().clone();
         if media.is_empty() {
+            self.set_overlay((0.0, 0.0));
             return;
         }
         let fill = self.scaling_choices.borrow().iter().any(|c| c == "fill");
         let Some(plan) = fit::plan(w, h, &media, fill, true) else {
             self.fit_label.set_text(&i18n::tr("print.auto_fit_none"));
             self.fit_label.set_visible(true);
+            self.set_overlay((0.0, 0.0));
             return;
         };
         // Формат листа.
@@ -1156,6 +1234,14 @@ impl PrintState {
         }
         self.fit_label.set_text(&info);
         self.fit_label.set_visible(true);
+        // Геометрия оверлея: тёмные полосы и рамка печати.
+        self.set_overlay((plan.crop_frac_x, plan.crop_frac_y));
+    }
+
+    /// Запомнить доли обрезки и перерисовать оверлей предпросмотра.
+    fn set_overlay(&self, frac: (f64, f64)) {
+        self.fit_crop.set(frac);
+        self.crop_overlay.queue_draw();
     }
 
     fn fill_queue(self: &Rc<Self>, jobs: &[linuxprinterg_core::domain::Job]) {

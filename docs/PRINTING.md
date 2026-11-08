@@ -12,7 +12,9 @@ Standard CUPS user utilities — no root, no `lpadmin`:
 
 * **options** — `lpoptions -p <printer> -l` fills the dropdowns with the
   printer's real choices (`PageSize`, `InputSlot`, `MediaType`, `Duplex`,
-  `print-scaling` …);
+  `print-scaling` …), and every choice is validated against them before
+  sending: an unsupported `media=…` is rejected with a message listing what
+  is actually available, instead of a failed `lp`;
 * **submission** — `lp -d <printer> -n <copies> -o key=value … -- <file>`;
 * **cancellation** — `cancel <printer>-<id>` (confirmation in the UI);
 * **queue** — a built-in IPP client
@@ -20,10 +22,6 @@ Standard CUPS user utilities — no root, no `lpadmin`:
   `application/ipp` to the local cupsd (`/run/cups/cups.sock` or
   `127.0.0.1:631`, `CUPS_SERVER` overrides) for exact `job-state` values;
   when IPP is unavailable the app falls back to `lpstat -W … -o`.
-
-Every choice is validated against the printer's supported values before
-sending: an unsupported `media=…` or `print-scaling=…` is rejected with a
-message listing what is actually available, instead of a failed `lp`.
 
 ## Accepted files
 
@@ -62,8 +60,7 @@ honest message is shown and the size stays unchanged.
 Row «Print at» (`job-hold-until`): **Now** (nothing sent) / **Day-time** /
 **Evening** / **Night** / **Weekend** → CUPS values `day-time`, `evening`,
 `night`, `weekend`. Named values are checked against the printer's real
-`job-hold-until` choices; a manual `HH:MM` time passes through untouched
-(the choices list cannot contain it by definition).
+choices; a manual `HH:MM` time passes through untouched.
 
 ## Queue
 
@@ -77,8 +74,8 @@ Row «Print at» (`job-hold-until`): **Now** (nothing sent) / **Day-time** /
 * auto-refresh every **3 s**; after **2 failures in a row** polling stops
   until «Refresh» is pressed manually (or a poll succeeds);
 * a watched job reaching a terminal state → a system notification
-  (freedesktop Notifications over D-Bus) plus a journal entry; the number of
-  active jobs is the badge next to «Print» in the sidebar;
+  (freedesktop Notifications over D-Bus) plus a journal entry; active jobs
+  are counted in the badge next to «Print»;
 * the list holds active jobs and the **last 10 completed** ones; on the
   `lpstat` fallback only "active/completed" can be told apart.
 
@@ -94,7 +91,7 @@ cupsenable MyPrinter  # and enable the queue
 
 ### CUPS is stopped
 
-The app shows a banner «CUPS scheduler is not running».
+The app shows a banner «CUPS scheduler is not running»:
 
 ```bash
 sudo systemctl status cups
@@ -123,10 +120,9 @@ avahi-browse -rtp _ipp._tcp  # network (Mopria) printers
 ```
 
 Network printers are usually added as `ipp://host:631/printers/NAME` or
-`ipps://host/ipp/print` (driverless IPP Everywhere). Add the device with
-`system-config-printer` or the CUPS web interface `http://localhost:631/admin`
-— both request polkit authorization themselves; the app never calls
-`lpadmin`.
+`ipps://host/ipp/print` (driverless IPP Everywhere) via
+`system-config-printer` or `http://localhost:631/admin` — both request polkit
+themselves; the app never calls `lpadmin`.
 
 ### Margins and cropping
 
@@ -134,12 +130,12 @@ Network printers are usually added as `ipp://host:631/printers/NAME` or
   `lpoptions -p MyPrinter -l | grep -i pagesize`;
 * wide white borders are the classic "photo on A4" case → turn on
   **Auto photo fit** ([AUTO-FIT.md](AUTO-FIT.md));
-* print margins are driver CUPS options; their exact list depends on the
-  printer and is not invented by the application.
+* print margins are driver CUPS options; their list depends on the printer
+  and is not invented by the application.
 
 ### No driver for the printer
 
-CUPS uses the drivers installed in the system; LinuxPrinterG ships none.
+CUPS uses the drivers installed in the system; LinuxPrinterG ships none:
 
 ```bash
 # Debian/Ubuntu
@@ -157,7 +153,6 @@ need no vendor driver at all; `cups-filters` provides the generic filters.
 
 ```bash
 lpstat -t                  # everything at once
-lpstat -p -v               # printers + their URIs
 lpoptions -p MyPrinter -l  # supported options and choices
 lp -d MyPrinter -o media=A4 -o print-scaling=fill photo.jpg
 cancel MyPrinter-23        # cancel by job token

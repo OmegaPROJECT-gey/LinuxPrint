@@ -77,6 +77,11 @@ struct PrintState {
     auto_fit: gtk::Switch,
     /// Реальные значения `PageSize` принтера (совпадают с пунктами `media_dd`).
     media_choices: RefCell<Vec<String>>,
+    /// Типы носителя (`MediaType`) — как есть, для запроса печати;
+    /// в списке показываются человеческие имена (см. media_type_label).
+    media_type_choices: RefCell<Vec<String>>,
+    /// Лотки (`InputSlot`) — как есть, для запроса печати.
+    tray_choices: RefCell<Vec<String>>,
     /// Подпись под предпросмотром: что реально напечатается.
     fit_label: gtk::Label,
     /// Размеры изображения из предпросмотра — вход автоподгона.
@@ -453,6 +458,8 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
         scaling_choices: RefCell::new(vec![String::new()]),
         auto_fit: auto_fit.clone(),
         media_choices: RefCell::new(Vec::new()),
+        media_type_choices: RefCell::new(Vec::new()),
+        tray_choices: RefCell::new(Vec::new()),
         fit_label,
         file_dims: file_dims.clone(),
         fit_crop: fit_crop.clone(),
@@ -681,18 +688,28 @@ impl PrintState {
                     .cloned()
                     .unwrap_or_default();
 
-                set_items(&s.media_dd, &media);
-                set_items(&s.tray_dd, &trays);
+                // В списках — человеческие имена (media_label и др.),
+                // в *_choices — исходные значения опций: только они
+                // уходят в запрос печати и в поиск по алиасам.
+                let media_labels: Vec<String> = media.iter().map(|m| media_label(m)).collect();
+                let tray_labels: Vec<String> = trays.iter().map(|t| tray_label(t)).collect();
+                let mt_labels: Vec<String> =
+                    media_types.iter().map(|t| media_type_label(t)).collect();
+                set_items(&s.media_dd, &media_labels);
+                set_items(&s.tray_dd, &tray_labels);
                 // Выбор — после подмены модели: set_items сбрасывает
                 // выделение, поэтому применяем настройку медиа здесь.
                 if let Some(idx) = media.iter().position(|m| m == &default_media) {
                     s.media_dd.set_selected(idx as u32);
                 }
                 *s.media_choices.borrow_mut() = media;
+                *s.tray_choices.borrow_mut() = trays;
                 if media_types.is_empty() {
+                    *s.media_type_choices.borrow_mut() = Vec::new();
                     set_items(&s.media_type_dd, &[i18n::tr("common.none")]);
                 } else {
-                    set_items(&s.media_type_dd, &media_types);
+                    *s.media_type_choices.borrow_mut() = media_types;
+                    set_items(&s.media_type_dd, &mt_labels);
                 }
                 // Подгонка под лист: реальные choices принтера; если опция
                 // не заявлена — остаётся только «по умолчанию» (ничего не
@@ -872,10 +889,15 @@ impl PrintState {
             return;
         };
 
-        let media = selected_text(&self.media_dd);
-        let tray = selected_text(&self.tray_dd);
-        let media_type =
-            selected_text(&self.media_type_dd).filter(|t| t != &i18n::tr("common.none"));
+        // Сырые значения опций: в списках отображаются человеческие
+        // имена (media_label и др.), а в запрос должны уйти значения
+        // драйвера — берём их из *_choices по индексу выбранного пункта.
+        let raw_choice = |dd: &gtk::DropDown, choices: &RefCell<Vec<String>>| -> Option<String> {
+            choices.borrow().get(dd.selected() as usize).cloned()
+        };
+        let media = raw_choice(&self.media_dd, &self.media_choices);
+        let tray = raw_choice(&self.tray_dd, &self.tray_choices);
+        let media_type = raw_choice(&self.media_type_dd, &self.media_type_choices);
         let sides = match self.sides_dd.selected() {
             1 => Sides::TwoSidedLongEdge,
             2 => Sides::TwoSidedShortEdge,
@@ -1130,19 +1152,14 @@ impl PrintState {
         self.quality_dd.set_selected(3); // print.quality.photo
         self.color_dd.set_selected(0); // цвет
         self.sides_dd.set_selected(0); // односторонняя печать
-        // Тип носителя «Photo»/«Glossy», если принтер его поддерживает.
-        if let Some(model) = self.media_type_dd.model() {
-            for i in 0..model.n_items() {
-                let text = model
-                    .item(i)
-                    .and_then(|o| o.downcast::<gtk::StringObject>().ok())
-                    .map(|s| s.string().to_ascii_lowercase());
-                if let Some(lower) = text {
-                    if lower.contains("photo") || lower.contains("glossy") {
-                        self.media_type_dd.set_selected(i);
-                        break;
-                    }
-                }
+        // Тип носителя «Photo»/«Glossy», если принтер его поддерживает:
+        // ищем по сырым значениям опции (в списке — человеческие имена).
+        let choices = self.media_type_choices.borrow().clone();
+        for (i, raw) in choices.iter().enumerate() {
+            let low = raw.to_ascii_lowercase();
+            if low.contains("photo") || low.contains("glossy") {
+                self.media_type_dd.set_selected(i as u32);
+                break;
             }
         }
         self.ctx.toast(&i18n::tr("print.photo_profile_applied"));
@@ -1155,18 +1172,13 @@ impl PrintState {
     fn apply_photo_size_preset(self: &Rc<Self>) {
         const ALIASES: [&str; 3] = ["4x6", "10x15", "100x150"];
         self.apply_photo_profile();
-        let Some(model) = self.media_dd.model() else {
+        // Ищем по сырым значениям опции (в списке отображаются
+        // человеческие имена — по ним алиасы не найти).
+        let texts: Vec<String> = self.media_choices.borrow().clone();
+        if texts.is_empty() {
             self.ctx.toast(&i18n::tr("print.photo_size_missing"));
             return;
-        };
-        let texts: Vec<String> = (0..model.n_items())
-            .filter_map(|i| {
-                model
-                    .item(i)
-                    .and_then(|o| o.downcast::<gtk::StringObject>().ok())
-                    .map(|s| s.string().to_string())
-            })
-            .collect();
+        }
         let find = |pred: &dyn Fn(&str) -> bool| -> Option<u32> {
             texts
                 .iter()
@@ -1181,10 +1193,9 @@ impl PrintState {
         match hit {
             Some(i) => {
                 self.media_dd.set_selected(i);
-                self.ctx.toast(&i18n::trf(
-                    "print.photo_size_applied",
-                    &[("size", &texts[i as usize])],
-                ));
+                let shown = media_label(&texts[i as usize]);
+                self.ctx
+                    .toast(&i18n::trf("print.photo_size_applied", &[("size", &shown)]));
             }
             None => self.ctx.toast(&i18n::tr("print.photo_size_missing")),
         }
@@ -1450,13 +1461,87 @@ fn scaling_label_key(choice: &str) -> Option<&'static str> {
     }
 }
 
-fn selected_text(dd: &gtk::DropDown) -> Option<String> {
-    let idx = dd.selected();
-    let model = dd.model()?;
-    model
-        .item(idx)
-        .and_then(|o| o.downcast::<gtk::StringObject>().ok())
-        .map(|s| s.string().to_string())
+/// Человекочитаемое имя формата бумаги для списка.
+///
+/// В запрос печати уходит исходное значение (`A4`, `4x6`, `215x345mm`,
+/// `EnvDL`…), здесь — только то, что видит пользователь.
+fn media_label(raw: &str) -> String {
+    // Без полей: 4x6.Borderless → «4 × 6″ (без полей)».
+    if let Some(base) = raw.strip_suffix(".Borderless") {
+        let name = media_label(base);
+        return i18n::trf("print.media.borderless", &[("name", &name)]);
+    }
+    // Миллиметровые форматы: 215x345mm, 55x91mm, 89x89mm.
+    if let Some(rest) = raw.strip_suffix("mm") {
+        if let Some((w, h)) = split_dims(rest) {
+            return i18n::trf("print.media.mm", &[("w", w), ("h", h)]);
+        }
+    }
+    // Дюймовые фотоформаты: 4x6, 3.5x5, 8x10 (обе части — числа).
+    if let Some((w, h)) = split_dims(raw) {
+        let numeric = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.');
+        if numeric(w) && numeric(h) {
+            return i18n::trf("print.media.inch", &[("w", w), ("h", h)]);
+        }
+    }
+    match raw {
+        "Custom.WIDTHxHEIGHT" => i18n::tr("print.media.custom"),
+        "Postcard" => i18n::tr("print.media.postcard"),
+        "FanFoldGermanLegal" => i18n::tr("print.media.fanfold"),
+        // Конверты: EnvDL, EnvC5, Env10, EnvChou3…
+        s if s.starts_with("Env") && s.len() > 3 => i18n::trf("print.env", &[("name", &s[3..])]),
+        _ => raw.to_string(),
+    }
+}
+
+/// Разбить `WxH` на две непустые части (без проверки, что это числа).
+fn split_dims(s: &str) -> Option<(&str, &str)> {
+    let (w, h) = s.split_once('x')?;
+    if w.is_empty() || h.is_empty() {
+        return None;
+    }
+    Some((w, h))
+}
+
+/// Человекочитаемое имя типа носителя (`MediaType`).
+///
+/// Драйвер Canon отдаёт коды вида `Com.canonMtglossy` — показываем
+/// нормальное название; неизвестные коды оставляем как есть.
+fn media_type_label(raw: &str) -> String {
+    if let Some(rest) = raw.strip_prefix("Com.canon") {
+        return match rest {
+            "Mtglossy" => i18n::tr("print.mt.glossy"),
+            "Mtluster" => i18n::tr("print.mt.luster"),
+            "Mtmat" => i18n::tr("print.mt.matte"),
+            "Mtgr" => i18n::tr("print.mt.gr"),
+            "Mthires" => i18n::tr("print.mt.hires"),
+            "Mthagakiglossy" | "Mthagakiglossya" => i18n::tr("print.mt.agaki_glossy"),
+            "Mtsemisuper" => i18n::tr("print.mt.semisuper"),
+            "Mtgreeting" => i18n::tr("print.mt.greeting"),
+            "Mtcardstock" => i18n::tr("print.mt.cardstock"),
+            "0780" => i18n::tr("print.mt.canon0780"),
+            "0781" => i18n::tr("print.mt.canon0781"),
+            "Mtinkjet" | "Mtinkjeta" => i18n::tr("print.mt.inkjet"),
+            "Mthagaki" | "Mthagakia" => i18n::tr("print.mt.agaki"),
+            _ => raw.to_string(),
+        };
+    }
+    match raw {
+        "Stationery" => i18n::tr("print.mt.stationery"),
+        "Photographic" => i18n::tr("print.mt.photographic"),
+        "Envelope" => i18n::tr("print.mt.envelope"),
+        "Auto" => i18n::tr("common.auto"),
+        _ => raw.to_string(),
+    }
+}
+
+/// Человекочитаемое имя лотка (`InputSlot`).
+fn tray_label(raw: &str) -> String {
+    match raw {
+        "Auto" => i18n::tr("common.auto"),
+        "Main" => i18n::tr("print.tray.main"),
+        _ => raw.to_string(),
+    }
 }
 
 fn state_label(state: &linuxprinterg_core::domain::PrinterState) -> String {

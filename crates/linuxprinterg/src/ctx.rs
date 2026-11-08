@@ -10,6 +10,9 @@ use linuxprinterg_core::storage::journal::{Category, JournalHandle, Level};
 use linuxprinterg_core::storage::settings::Settings;
 use linuxprinterg_core::{i18n, services};
 
+/// Обработчик открытия файла извне (`linuxprinterg photo.jpg`).
+pub type OpenHandler = Box<dyn Fn(std::path::PathBuf)>;
+
 /// Разделяемый контекст (один на всё приложение, главный поток).
 pub struct AppCtx {
     pub settings: RefCell<Settings>,
@@ -30,7 +33,7 @@ pub struct AppCtx {
     pub pending_file: RefCell<Option<std::path::PathBuf>>,
     /// Обработчик открытия файла: страница «Печать» регистрирует его при
     /// построении (Weak-ссылкой на состояние — без циклов Rc).
-    pub open_handler: RefCell<Option<Box<dyn Fn(std::path::PathBuf)>>>,
+    pub open_handler: RefCell<Option<OpenHandler>>,
 }
 
 pub type Ctx = Rc<AppCtx>;

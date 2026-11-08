@@ -24,13 +24,13 @@ pub fn build(ctx: &Ctx) -> (gtk::Widget, PageHandle) {
     banner.set_button_label(Some(&i18n::tr("devices.open_cups_web")));
     banner.set_revealed(false);
 
+    // Описания-заглушки «ничего не найдено» показывает rebuild() только
+    // когда список действительно пуст (см. dim_label в холдерах).
     let printers_group = adw::PreferencesGroup::builder()
         .title(i18n::tr("devices.printers"))
-        .description(i18n::tr("devices.empty_printers"))
         .build();
     let scanners_group = adw::PreferencesGroup::builder()
         .title(i18n::tr("devices.scanners"))
-        .description(i18n::tr("devices.empty_scanners"))
         .build();
 
     let printers_holder = gtk::Box::builder()

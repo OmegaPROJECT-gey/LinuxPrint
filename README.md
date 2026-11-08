@@ -139,6 +139,18 @@ English.
 
 ---
 
+## Gallery
+
+| Printing | Devices |
+| :---: | :---: |
+| <img src="docs/images/g_print.png" width="430" alt="Printing: auto photo fit with live crop preview"> | <img src="docs/images/g_devices.png" width="430" alt="Devices: printers, scanners, DNS-SD"> |
+
+| Scanning | Settings |
+| :---: | :---: |
+| <img src="docs/images/g_scan.png" width="430" alt="Scanning: resolution, crop, OCR"> | <img src="docs/images/g_settings.png" width="430" alt="Settings: language, theme, journal"> |
+
+---
+
 ## Architecture
 
 A workspace of two crates — the logic is separated from the UI and fully

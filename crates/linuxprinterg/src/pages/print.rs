@@ -273,7 +273,7 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     // альбомная ориентация — пересчитывается при выборе файла, принтера
     // и при включении. Значения применяются к выпадающим спискам выше.
     let auto_fit = gtk::Switch::builder()
-        .active(true)
+        .active(ctx.settings.borrow().print.auto_fit)
         .valign(gtk::Align::Center)
         .tooltip_text(i18n::tr("print.auto_fit_hint"))
         .build();
@@ -425,7 +425,12 @@ pub fn build(ctx: &Ctx, window: &adw::ApplicationWindow) -> (gtk::Widget, PageHa
     }
     {
         let s = state.clone();
-        auto_fit.connect_active_notify(move |_| s.apply_auto_fit());
+        auto_fit.connect_active_notify(move |sw| {
+            // Запоминаем выбор пользователя между запусками приложения.
+            s.ctx.settings.borrow_mut().print.auto_fit = sw.is_active();
+            s.ctx.save_settings();
+            s.apply_auto_fit();
+        });
     }
     {
         let s = state.clone();

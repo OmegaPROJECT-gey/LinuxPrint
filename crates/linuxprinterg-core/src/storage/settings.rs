@@ -82,6 +82,9 @@ pub struct PrintDefaults {
     pub color_mode: PrintColorMode,
     pub quality: PrintQuality,
     pub orientation: Orientation,
+    /// Автоподгон фото: подбор формата бумаги под снимок, заполнение
+    /// листа с обрезкой и альбомная ориентация (аналог Canon PRINT).
+    pub auto_fit: bool,
 }
 
 impl Default for PrintDefaults {
@@ -93,6 +96,7 @@ impl Default for PrintDefaults {
             color_mode: PrintColorMode::Color,
             quality: PrintQuality::Normal,
             orientation: Orientation::Portrait,
+            auto_fit: true,
         }
     }
 }
